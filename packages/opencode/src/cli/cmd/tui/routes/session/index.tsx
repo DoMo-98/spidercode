@@ -44,6 +44,7 @@ import type { EditTool } from "@/tool/edit"
 import type { ApplyPatchTool } from "@/tool/apply_patch"
 import type { WebFetchTool } from "@/tool/webfetch"
 import type { TaskTool } from "@/tool/task"
+import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel } from "@/session/task-state"
 import type { QuestionTool } from "@/tool/question"
 import type { SkillTool } from "@/tool/skill"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
@@ -1969,10 +1970,7 @@ function WebSearch(props: ToolProps<any>) {
 }
 
 function Task(props: ToolProps<typeof TaskTool>) {
-  const { theme } = useTheme()
-  const keybind = useKeybind()
   const { navigate } = useRoute()
-  const local = useLocal()
   const sync = useSync()
 
   onMount(() => {
@@ -1992,7 +1990,8 @@ function Task(props: ToolProps<typeof TaskTool>) {
 
   const current = createMemo(() => tools().findLast((x) => (x.state as any).title))
 
-  const isRunning = createMemo(() => props.part.state.status === "running")
+  const lifecycle = createMemo(() => delegatedTaskLifecycle(props.part) ?? "running")
+  const isRunning = createMemo(() => lifecycle() === "running" || lifecycle() === "queued")
 
   const duration = createMemo(() => {
     const first = messages().find((x) => x.role === "user")?.time.created
@@ -2003,19 +2002,18 @@ function Task(props: ToolProps<typeof TaskTool>) {
 
   const content = createMemo(() => {
     if (!props.input.description) return ""
-    let content = [`Task ${props.input.description}`]
+    const lines = [`Task ${props.input.description}`, `└ ${delegatedTaskLifecycleLabel(lifecycle())}`]
 
     if (isRunning() && tools().length > 0) {
-      // content[0] += ` · ${tools().length} toolcalls`
-      if (current()) content.push(`↳ ${Locale.titlecase(current()!.tool)} ${(current()!.state as any).title}`)
-      else content.push(`↳ ${tools().length} toolcalls`)
+      if (current()) lines.push(`↳ ${Locale.titlecase(current()!.tool)} ${(current()!.state as any).title}`)
+      else lines.push(`↳ ${tools().length} toolcalls`)
     }
 
-    if (props.part.state.status === "completed") {
-      content.push(`└ ${tools().length} toolcalls · ${Locale.duration(duration())}`)
+    if (lifecycle() === "completed") {
+      lines[1] = `└ Completed · ${tools().length} toolcalls · ${Locale.duration(duration())}`
     }
 
-    return content.join("\n")
+    return lines.join("\n")
   })
 
   return (

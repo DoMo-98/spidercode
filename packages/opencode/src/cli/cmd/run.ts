@@ -23,6 +23,7 @@ import { WriteTool } from "../../tool/write"
 import { CodeSearchTool } from "../../tool/codesearch"
 import { WebSearchTool } from "../../tool/websearch"
 import { TaskTool } from "../../tool/task"
+import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel } from "../../session/task-state"
 import { SkillTool } from "../../tool/skill"
 import { BashTool } from "../../tool/bash"
 import { TodoWriteTool } from "../../tool/todo"
@@ -169,18 +170,25 @@ function websearch(info: ToolProps<typeof WebSearchTool>) {
 
 function task(info: ToolProps<typeof TaskTool>) {
   const input = info.part.state.input
-  const status = info.part.state.status
+  const lifecycle = delegatedTaskLifecycle(info.part) ?? "running"
   const subagent =
     typeof input.subagent_type === "string" && input.subagent_type.trim().length > 0 ? input.subagent_type : "unknown"
   const agent = Locale.titlecase(subagent)
   const desc =
     typeof input.description === "string" && input.description.trim().length > 0 ? input.description : undefined
-  const icon = status === "error" ? "✗" : status === "running" ? "•" : "✓"
+  const icon =
+    lifecycle === "failed"
+      ? "✗"
+      : lifecycle === "cancelled"
+        ? "-"
+        : lifecycle === "running" || lifecycle === "queued"
+          ? "•"
+          : "✓"
   const name = desc ?? `${agent} Task`
   inline({
     icon,
     title: name,
-    description: desc ? `${agent} Agent` : undefined,
+    description: `${delegatedTaskLifecycleLabel(lifecycle)}${desc ? ` · ${agent} Agent` : ""}`,
   })
 }
 

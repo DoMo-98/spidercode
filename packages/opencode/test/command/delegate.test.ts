@@ -38,7 +38,7 @@ $ARGUMENTS
         expect(command?.subtask).toBe(true)
         expect(command?.source).toBe("command")
         expect(command?.hints).toEqual(["$ARGUMENTS"])
-        await expect(command?.template).resolves.toContain("Execute the following bounded task autonomously:")
+        expect(await command?.template).toContain("Execute the following bounded task autonomously:")
       },
     })
   })

@@ -4,11 +4,12 @@ import { useSync } from "@tui/context/sync"
 import { pipe, sumBy } from "remeda"
 import { useTheme } from "@tui/context/theme"
 import { SplitBorder } from "@tui/component/border"
-import type { AssistantMessage, Session } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, Session, ToolPart } from "@opencode-ai/sdk/v2"
 import { useCommandDialog } from "@tui/component/dialog-command"
 import { useKeybind } from "../../context/keybind"
 import { Flag } from "@/flag/flag"
 import { useTerminalDimensions } from "@opentui/solid"
+import { delegatedTaskLifecycleSummary } from "@/session/task-state"
 
 const Title = (props: { session: Accessor<Session> }) => {
   const { theme } = useTheme()
@@ -46,6 +47,15 @@ export function Header() {
   const sync = useSync()
   const session = createMemo(() => sync.session.get(route.sessionID)!)
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
+  const taskParts = createMemo(
+    () =>
+      messages().flatMap((message) =>
+        (sync.data.part[message.id] ?? []).filter(
+          (part): part is ToolPart => part.type === "tool" && part.tool === "task",
+        ),
+      ),
+  )
+  const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
 
   const cost = createMemo(() => {
     const total = pipe(
@@ -153,16 +163,25 @@ export function Header() {
             </box>
           </Match>
           <Match when={true}>
-            <box flexDirection={narrow() ? "column" : "row"} justifyContent="space-between" gap={1}>
-              {Flag.OPENCODE_EXPERIMENTAL_WORKSPACES ? (
-                <box flexDirection="column">
+            <box flexDirection="column" gap={1}>
+              <box flexDirection={narrow() ? "column" : "row"} justifyContent="space-between" gap={1}>
+                {Flag.OPENCODE_EXPERIMENTAL_WORKSPACES ? (
+                  <box flexDirection="column">
+                    <Title session={session} />
+                    <WorkspaceInfo workspace={workspace} />
+                  </box>
+                ) : (
                   <Title session={session} />
-                  <WorkspaceInfo workspace={workspace} />
-                </box>
-              ) : (
-                <Title session={session} />
-              )}
-              <ContextInfo context={context} cost={cost} />
+                )}
+                <ContextInfo context={context} cost={cost} />
+              </box>
+              <Show when={subagentSummary()}>
+                {(summary) => (
+                  <text fg={theme.textMuted} wrapMode="none">
+                    {summary().text}
+                  </text>
+                )}
+              </Show>
             </box>
           </Match>
         </Switch>

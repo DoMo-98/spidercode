@@ -1,5 +1,9 @@
 export type DelegatedTaskLifecycle = "queued" | "running" | "completed" | "failed" | "cancelled"
 
+export const delegatedTaskLifecycleOrder = ["queued", "running", "completed", "failed", "cancelled"] as const
+
+export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number>
+
 type TaskToolPart = {
   tool: string
   state: {
@@ -43,5 +47,41 @@ export function delegatedTaskLifecycleLabel(lifecycle: DelegatedTaskLifecycle) {
       return "Failed"
     case "cancelled":
       return "Cancelled"
+  }
+}
+
+export function delegatedTaskLifecycleCounts(parts: TaskToolPart[]): DelegatedTaskLifecycleCounts {
+  const counts: DelegatedTaskLifecycleCounts = {
+    queued: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    cancelled: 0,
+  }
+
+  for (const part of parts) {
+    const lifecycle = delegatedTaskLifecycle(part)
+    if (!lifecycle) continue
+    counts[lifecycle] += 1
+  }
+
+  return counts
+}
+
+export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
+  const counts = delegatedTaskLifecycleCounts(parts)
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0)
+  if (total === 0) return undefined
+
+  const segments = delegatedTaskLifecycleOrder.flatMap((lifecycle) => {
+    const count = counts[lifecycle]
+    if (count === 0) return []
+    return `${count} ${delegatedTaskLifecycleLabel(lifecycle).toLowerCase()}`
+  })
+
+  return {
+    total,
+    counts,
+    text: `${total} subagent${total === 1 ? "" : "s"} · ${segments.join(" · ")}`,
   }
 }

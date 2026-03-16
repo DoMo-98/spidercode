@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel } from "../../src/session/task-state"
+import {
+  delegatedTaskLifecycle,
+  delegatedTaskLifecycleCounts,
+  delegatedTaskLifecycleLabel,
+  delegatedTaskLifecycleSummary,
+} from "../../src/session/task-state"
 
 function taskPart(state: any) {
   return {
@@ -64,5 +69,47 @@ describe("delegated task lifecycle", () => {
     expect(delegatedTaskLifecycleLabel("completed")).toBe("Completed")
     expect(delegatedTaskLifecycleLabel("failed")).toBe("Failed")
     expect(delegatedTaskLifecycleLabel("cancelled")).toBe("Cancelled")
+  })
+
+  test("counts delegated task lifecycle states", () => {
+    expect(
+      delegatedTaskLifecycleCounts([
+        taskPart({ status: "pending" }),
+        taskPart({ status: "running" }),
+        taskPart({ status: "completed" }),
+        taskPart({ status: "error" }),
+        taskPart({ status: "completed", metadata: { lifecycle: "cancelled" } }),
+        { tool: "bash", state: { status: "completed" } },
+      ] as any),
+    ).toEqual({
+      queued: 1,
+      running: 1,
+      completed: 1,
+      failed: 1,
+      cancelled: 1,
+    })
+  })
+
+  test("formats a compact delegated task summary", () => {
+    expect(
+      delegatedTaskLifecycleSummary([
+        taskPart({ status: "pending" }),
+        taskPart({ status: "running" }),
+        taskPart({ status: "completed" }),
+        taskPart({ status: "error" }),
+      ] as any),
+    ).toEqual({
+      total: 4,
+      counts: {
+        queued: 1,
+        running: 1,
+        completed: 1,
+        failed: 1,
+        cancelled: 0,
+      },
+      text: "4 subagents · 1 queued · 1 running · 1 completed · 1 failed",
+    })
+
+    expect(delegatedTaskLifecycleSummary([{ tool: "bash", state: { status: "completed" } }] as any)).toBeUndefined()
   })
 })

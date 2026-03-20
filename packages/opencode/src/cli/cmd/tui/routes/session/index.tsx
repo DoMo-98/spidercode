@@ -44,7 +44,7 @@ import type { EditTool } from "@/tool/edit"
 import type { ApplyPatchTool } from "@/tool/apply_patch"
 import type { WebFetchTool } from "@/tool/webfetch"
 import type { TaskTool } from "@/tool/task"
-import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel } from "@/session/task-state"
+import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel, delegatedTaskResultPreview } from "@/session/task-state"
 import type { QuestionTool } from "@/tool/question"
 import type { SkillTool } from "@/tool/skill"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
@@ -2000,6 +2000,10 @@ function Task(props: ToolProps<typeof TaskTool>) {
     return assistant - first
   })
 
+  const resultPreview = createMemo(() =>
+    props.part.state.status === "completed" ? delegatedTaskResultPreview(props.part.state.output) : undefined,
+  )
+
   const content = createMemo(() => {
     if (!props.input.description) return ""
     const lines = [`Task ${props.input.description}`, `└ ${delegatedTaskLifecycleLabel(lifecycle())}`]
@@ -2011,6 +2015,7 @@ function Task(props: ToolProps<typeof TaskTool>) {
 
     if (lifecycle() === "completed") {
       lines[1] = `└ Completed · ${tools().length} toolcalls · ${Locale.duration(duration())}`
+      if (resultPreview()) lines.push(`↳ ${resultPreview()}`)
     }
 
     return lines.join("\n")

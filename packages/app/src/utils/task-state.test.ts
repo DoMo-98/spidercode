@@ -4,6 +4,7 @@ import {
   delegatedTaskLifecycleCounts,
   delegatedTaskLifecycleLabel,
   delegatedTaskLifecycleSummary,
+  delegatedTaskResultPreview,
 } from "./task-state"
 
 function taskPart(state: Record<string, unknown>) {
@@ -101,5 +102,24 @@ describe("task-state", () => {
       },
       text: "3 subagents · 1 queued · 1 running · 1 completed",
     })
+  })
+
+  test("extracts a concise task result preview", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
+
+    expect(
+      delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
+    ).toBe(`${"x".repeat(119)}…`)
   })
 })

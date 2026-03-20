@@ -4,11 +4,15 @@ export const delegatedTaskLifecycleOrder = ["queued", "running", "completed", "f
 
 export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number>
 
+const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
+const TASK_RESULT_LINE_LIMIT = 120
+
 type TaskToolPart = {
   tool: string
   state: {
     status: "pending" | "running" | "completed" | "error"
     metadata?: Record<string, unknown>
+    output?: string
   }
 }
 
@@ -84,4 +88,20 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
     counts,
     text: `${total} subagent${total === 1 ? "" : "s"} · ${segments.join(" · ")}`,
   }
+}
+
+export function delegatedTaskResultPreview(output?: string) {
+  if (!output) return undefined
+
+  const tagged = output.match(TASK_RESULT_TAG)?.[1] ?? output
+  const normalized = tagged
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const first = normalized[0]
+  if (!first) return undefined
+
+  if (first.length <= TASK_RESULT_LINE_LIMIT) return first
+  return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
 }

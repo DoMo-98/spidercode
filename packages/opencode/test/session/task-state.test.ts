@@ -4,6 +4,7 @@ import {
   delegatedTaskLifecycleCounts,
   delegatedTaskLifecycleLabel,
   delegatedTaskLifecycleSummary,
+  delegatedTaskResultPreview,
 } from "../../src/session/task-state"
 
 function taskPart(state: any) {
@@ -111,5 +112,24 @@ describe("delegated task lifecycle", () => {
     })
 
     expect(delegatedTaskLifecycleSummary([{ tool: "bash", state: { status: "completed" } }] as any)).toBeUndefined()
+  })
+
+  test("extracts a concise delegated task result preview", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
+
+    expect(
+      delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
+    ).toBe(`${"x".repeat(119)}…`)
   })
 })

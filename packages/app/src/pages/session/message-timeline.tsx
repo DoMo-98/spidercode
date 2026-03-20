@@ -12,7 +12,7 @@ import { Spinner } from "@opencode-ai/ui/spinner"
 import { SessionTurn } from "@opencode-ai/ui/session-turn"
 import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import { TextField } from "@opencode-ai/ui/text-field"
-import type { AssistantMessage, Message as MessageType, Part, TextPart, UserMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, Message as MessageType, Part, TextPart, ToolPart, UserMessage } from "@opencode-ai/sdk/v2"
 import { showToast } from "@opencode-ai/ui/toast"
 import { Binary } from "@opencode-ai/util/binary"
 import { getFilename } from "@opencode-ai/util/path"
@@ -29,6 +29,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
+import { delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
   path: string
@@ -305,6 +306,15 @@ export function MessageTimeline(props: {
     if (!id) return
     return sync.session.get(id)
   })
+  const taskParts = createMemo(
+    () =>
+      sessionMessages().flatMap((message) =>
+        (sync.data.part[message.id] ?? []).filter(
+          (part): part is ToolPart => part.type === "tool" && part.tool === "task",
+        ),
+      ),
+  )
+  const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
   const titleValue = createMemo(() => info()?.title)
   const shareUrl = createMemo(() => info()?.share?.url)
   const shareEnabled = createMemo(() => sync.data.config.share !== "disabled")
@@ -664,8 +674,8 @@ export function MessageTimeline(props: {
                   "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
                 }}
               >
-                <div class="h-12 w-full flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-1 min-w-0 flex-1 pr-3">
+                <div class="min-h-12 w-full flex items-start justify-between gap-2 py-2">
+                  <div class="flex items-start gap-1 min-w-0 flex-1 pr-3">
                     <Show when={parentID()}>
                       <IconButton
                         tabIndex={-1}
@@ -675,62 +685,67 @@ export function MessageTimeline(props: {
                         aria-label={language.t("common.goBack")}
                       />
                     </Show>
-                    <div class="flex items-center min-w-0 grow-1">
-                      <div
-                        class="shrink-0 flex items-center justify-center overflow-hidden transition-[width,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                        style={{
-                          width: slot.open ? "16px" : "0px",
-                          "margin-right": slot.open ? "8px" : "0px",
-                        }}
-                        aria-hidden="true"
-                      >
-                        <Show when={slot.show}>
-                          <div
-                            class="transition-opacity duration-200 ease-out"
-                            classList={{
-                              "opacity-0": slot.fade,
-                            }}
+                    <div class="flex flex-col min-w-0 grow-1 gap-0.5">
+                      <div class="flex items-center min-w-0">
+                        <div
+                          class="shrink-0 flex items-center justify-center overflow-hidden transition-[width,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                          style={{
+                            width: slot.open ? "16px" : "0px",
+                            "margin-right": slot.open ? "8px" : "0px",
+                          }}
+                          aria-hidden="true"
+                        >
+                          <Show when={slot.show}>
+                            <div
+                              class="transition-opacity duration-200 ease-out"
+                              classList={{
+                                "opacity-0": slot.fade,
+                              }}
+                            >
+                              <Spinner class="size-4" style={{ color: tint() ?? "var(--icon-interactive-base)" }} />
+                            </div>
+                          </Show>
+                        </div>
+                        <Show when={titleValue() || title.editing}>
+                          <Show
+                            when={title.editing}
+                            fallback={
+                              <h1
+                                class="text-14-medium text-text-strong truncate grow-1 min-w-0"
+                                onDblClick={openTitleEditor}
+                              >
+                                {titleValue()}
+                              </h1>
+                            }
                           >
-                            <Spinner class="size-4" style={{ color: tint() ?? "var(--icon-interactive-base)" }} />
-                          </div>
+                            <InlineInput
+                              ref={(el) => {
+                                titleRef = el
+                              }}
+                              value={title.draft}
+                              disabled={title.saving}
+                              class="text-14-medium text-text-strong grow-1 min-w-0 rounded-[6px]"
+                              style={{ "--inline-input-shadow": "var(--shadow-xs-border-select)" }}
+                              onInput={(event) => setTitle("draft", event.currentTarget.value)}
+                              onKeyDown={(event) => {
+                                event.stopPropagation()
+                                if (event.key === "Enter") {
+                                  event.preventDefault()
+                                  void saveTitleEditor()
+                                  return
+                                }
+                                if (event.key === "Escape") {
+                                  event.preventDefault()
+                                  closeTitleEditor()
+                                }
+                              }}
+                              onBlur={closeTitleEditor}
+                            />
+                          </Show>
                         </Show>
                       </div>
-                      <Show when={titleValue() || title.editing}>
-                        <Show
-                          when={title.editing}
-                          fallback={
-                            <h1
-                              class="text-14-medium text-text-strong truncate grow-1 min-w-0"
-                              onDblClick={openTitleEditor}
-                            >
-                              {titleValue()}
-                            </h1>
-                          }
-                        >
-                          <InlineInput
-                            ref={(el) => {
-                              titleRef = el
-                            }}
-                            value={title.draft}
-                            disabled={title.saving}
-                            class="text-14-medium text-text-strong grow-1 min-w-0 rounded-[6px]"
-                            style={{ "--inline-input-shadow": "var(--shadow-xs-border-select)" }}
-                            onInput={(event) => setTitle("draft", event.currentTarget.value)}
-                            onKeyDown={(event) => {
-                              event.stopPropagation()
-                              if (event.key === "Enter") {
-                                event.preventDefault()
-                                void saveTitleEditor()
-                                return
-                              }
-                              if (event.key === "Escape") {
-                                event.preventDefault()
-                                closeTitleEditor()
-                              }
-                            }}
-                            onBlur={closeTitleEditor}
-                          />
-                        </Show>
+                      <Show when={!parentID() && subagentSummary()}>
+                        {(summary) => <div class="text-12-regular text-text-weak truncate">{summary().text}</div>}
                       </Show>
                     </div>
                   </div>

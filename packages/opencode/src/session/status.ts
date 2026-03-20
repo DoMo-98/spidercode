@@ -8,7 +8,10 @@ export namespace SessionStatus {
   export const Info = z
     .union([
       z.object({
-        type: z.literal("idle"),
+        type: z.literal("queued"),
+      }),
+      z.object({
+        type: z.literal("running"),
       }),
       z.object({
         type: z.literal("retry"),
@@ -17,7 +20,14 @@ export namespace SessionStatus {
         next: z.number(),
       }),
       z.object({
-        type: z.literal("busy"),
+        type: z.literal("completed"),
+      }),
+      z.object({
+        type: z.literal("failed"),
+        message: z.string().optional(),
+      }),
+      z.object({
+        type: z.literal("cancelled"),
       }),
     ])
     .meta({
@@ -33,13 +43,19 @@ export namespace SessionStatus {
         status: Info,
       }),
     ),
-    // deprecated
-    Idle: BusEvent.define(
-      "session.idle",
-      z.object({
-        sessionID: SessionID.zod,
-      }),
-    ),
+  }
+
+  export function isActive(status: { type: string }) {
+    return status.type === "queued" || status.type === "running" || status.type === "retry" || status.type === "busy"
+  }
+
+  export function isTerminal(status: { type: string }) {
+    return (
+      status.type === "completed" ||
+      status.type === "failed" ||
+      status.type === "cancelled" ||
+      status.type === "idle"
+    )
   }
 
   const state = Instance.state(() => {
@@ -50,7 +66,7 @@ export namespace SessionStatus {
   export function get(sessionID: SessionID) {
     return (
       state()[sessionID] ?? {
-        type: "idle",
+        type: "completed",
       }
     )
   }
@@ -64,14 +80,10 @@ export namespace SessionStatus {
       sessionID,
       status,
     })
-    if (status.type === "idle") {
-      // deprecated
-      Bus.publish(Event.Idle, {
-        sessionID,
-      })
-      delete state()[sessionID]
-      return
-    }
     state()[sessionID] = status
+  }
+
+  export function clear(sessionID: SessionID) {
+    delete state()[sessionID]
   }
 }

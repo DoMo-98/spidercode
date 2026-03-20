@@ -24,6 +24,7 @@ import { CodeSearchTool } from "../../tool/codesearch"
 import { WebSearchTool } from "../../tool/websearch"
 import { TaskTool } from "../../tool/task"
 import { delegatedTaskLifecycle, delegatedTaskLifecycleLabel } from "../../session/task-state"
+import { SessionStatus } from "../../session/status"
 import { SkillTool } from "../../tool/skill"
 import { BashTool } from "../../tool/bash"
 import { TodoWriteTool } from "../../tool/todo"
@@ -544,7 +545,7 @@ export const RunCommand = cmd({
           if (
             event.type === "session.status" &&
             event.properties.sessionID === sessionID &&
-            event.properties.status.type === "idle"
+            SessionStatus.isTerminal(event.properties.status)
           ) {
             break
           }

@@ -12,6 +12,7 @@ import { useKV } from "../../context/kv"
 import { createDebouncedSignal } from "../../util/signal"
 import { Spinner } from "../spinner"
 import { useToast } from "../../ui/toast"
+import { SessionStatus } from "@/session/status"
 
 export function DialogSessionList(props: { workspaceID?: string; localOnly?: boolean } = {}) {
   const dialog = useDialog()
@@ -72,7 +73,7 @@ export function DialogSessionList(props: { workspaceID?: string; localOnly?: boo
         }
         const isDeleting = toDelete() === x.id
         const status = sync.data.session_status?.[x.id]
-        const isWorking = status?.type === "busy"
+        const isWorking = status ? SessionStatus.isActive(status) : false
         return {
           title: isDeleting ? `Press ${keybind.print("session_delete")} again to confirm` : x.title,
           bg: isDeleting ? theme.error : undefined,

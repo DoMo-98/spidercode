@@ -57,7 +57,7 @@ export namespace SessionProcessor {
               input.abort.throwIfAborted()
               switch (value.type) {
                 case "start":
-                  SessionStatus.set(input.sessionID, { type: "busy" })
+                  SessionStatus.set(input.sessionID, { type: "running" })
                   break
 
                 case "reasoning-start":
@@ -382,7 +382,9 @@ export namespace SessionProcessor {
                 sessionID: input.assistantMessage.sessionID,
                 error: input.assistantMessage.error,
               })
-              SessionStatus.set(input.sessionID, { type: "idle" })
+              const message =
+                "data" in error && error.data && "message" in error.data ? String(error.data.message) : undefined
+              SessionStatus.set(input.sessionID, { type: "failed", message })
             }
           }
           if (snapshot) {

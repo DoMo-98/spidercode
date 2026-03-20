@@ -71,7 +71,7 @@ export function Prompt(props: PromptProps) {
   const sync = useSync()
   const dialog = useDialog()
   const toast = useToast()
-  const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "completed" as const })
   const history = usePromptHistory()
   const stash = usePromptStash()
   const command = useCommandDialog()

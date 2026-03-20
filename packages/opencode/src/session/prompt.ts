@@ -261,12 +261,12 @@ export namespace SessionPrompt {
     const s = state()
     const match = s[sessionID]
     if (!match) {
-      SessionStatus.set(sessionID, { type: "idle" })
+      SessionStatus.set(sessionID, { type: "cancelled" })
       return
     }
     match.abort.abort()
     delete s[sessionID]
-    SessionStatus.set(sessionID, { type: "idle" })
+    SessionStatus.set(sessionID, { type: "cancelled" })
     return
   }
 
@@ -279,13 +279,21 @@ export namespace SessionPrompt {
 
     const abort = resume_existing ? resume(sessionID) : start(sessionID)
     if (!abort) {
+      SessionStatus.set(sessionID, { type: "queued" })
       return new Promise<MessageV2.WithParts>((resolve, reject) => {
         const callbacks = state()[sessionID].callbacks
         callbacks.push({ resolve, reject })
       })
     }
 
-    using _ = defer(() => cancel(sessionID))
+    using _ = defer(() => {
+      const current = SessionStatus.get(sessionID)
+      if (SessionStatus.isTerminal(current)) {
+        SessionStatus.clear(sessionID)
+        return
+      }
+      cancel(sessionID)
+    })
 
     // Structured output state
     // Note: On session resumption, state is reset but outputFormat is preserved
@@ -295,7 +303,7 @@ export namespace SessionPrompt {
     let step = 0
     const session = await Session.get(sessionID)
     while (true) {
-      SessionStatus.set(sessionID, { type: "busy" })
+      SessionStatus.set(sessionID, { type: "running" })
       log.info("loop", { step, sessionID })
       if (abort.aborted) break
       let msgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
@@ -724,6 +732,17 @@ export namespace SessionPrompt {
     SessionCompaction.prune({ sessionID })
     for await (const item of MessageV2.stream(sessionID)) {
       if (item.info.role === "user") continue
+      if (abort.aborted) {
+        SessionStatus.set(sessionID, { type: "cancelled" })
+      } else if (item.info.error) {
+        const message =
+          "data" in item.info.error && item.info.error.data && "message" in item.info.error.data
+            ? String(item.info.error.data.message)
+            : undefined
+        SessionStatus.set(sessionID, { type: "failed", message })
+      } else {
+        SessionStatus.set(sessionID, { type: "completed" })
+      }
       const queued = state()[sessionID]?.callbacks ?? []
       for (const q of queued) {
         q.resolve(item)

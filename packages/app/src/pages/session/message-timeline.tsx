@@ -29,6 +29,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
+import { sessionDescendantIDs } from "@/pages/session/composer/session-request-tree"
 import { delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
@@ -315,6 +316,19 @@ export function MessageTimeline(props: {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
+  const activeChildSessionID = createMemo(() => {
+    const id = sessionID()
+    if (!id) return
+
+    const descendants = sessionDescendantIDs(sync.data.session ?? [], id)
+    return descendants.find((childID) => {
+      const status = sync.data.session_status[childID]
+      if (status?.type && status.type !== "idle") return true
+
+      const messages = sync.data.message[childID] ?? emptyMessages
+      return messages.some((message) => message.role === "assistant" && typeof message.time.completed !== "number")
+    })
+  })
   const titleValue = createMemo(() => info()?.title)
   const shareUrl = createMemo(() => info()?.share?.url)
   const shareEnabled = createMemo(() => sync.data.config.share !== "disabled")
@@ -560,6 +574,12 @@ export function MessageTimeline(props: {
     navigate(`/${params.dir}/session/${id}`)
   }
 
+  const navigateActiveChild = () => {
+    const id = activeChildSessionID()
+    if (!id) return
+    navigate(`/${params.dir}/session/${id}`)
+  }
+
   function DialogDeleteSession(props: { sessionID: string }) {
     const name = createMemo(() => sync.session.get(props.sessionID)?.title ?? language.t("command.session.new"))
     const handleDelete = async () => {
@@ -745,7 +765,22 @@ export function MessageTimeline(props: {
                         </Show>
                       </div>
                       <Show when={!parentID() && subagentSummary()}>
-                        {(summary) => <div class="text-12-regular text-text-weak truncate">{summary().text}</div>}
+                        {(summary) => (
+                          <Show
+                            when={activeChildSessionID()}
+                            fallback={<div class="text-12-regular text-text-weak truncate">{summary().text}</div>}
+                          >
+                            <button
+                              type="button"
+                              class="text-12-regular text-text-weak truncate text-left hover:text-text-base transition-colors"
+                              onClick={navigateActiveChild}
+                              title={summary().text}
+                              aria-label={summary().text}
+                            >
+                              {summary().text}
+                            </button>
+                          </Show>
+                        )}
                       </Show>
                     </div>
                   </div>

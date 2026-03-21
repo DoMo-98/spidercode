@@ -139,6 +139,16 @@ describe("task-state", () => {
     expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")
 
     expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "error",
+          input: {},
+          error: "task_id: session_123\n\nError: boom\n    at worker.ts:1:1",
+        }),
+      ),
+    ).toBe("Error: boom")
+
+    expect(
       delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "aborted", metadata: { cancelled: true } })),
     ).toBe("aborted")
   })

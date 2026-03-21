@@ -9,6 +9,20 @@ const TASK_RESULT_LINE_LIMIT = 120
 const TASK_METADATA_LINE = /^task_[a-z0-9_-]+:\s/i
 const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
 
+function firstPreviewLine(text?: string) {
+  if (!text) return undefined
+
+  const first = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .find((line) => !TASK_METADATA_LINE.test(line))
+
+  if (!first) return undefined
+  if (first.length <= TASK_RESULT_LINE_LIMIT) return first
+  return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
+}
+
 type TaskToolPart = {
   tool: string
   state: {
@@ -97,17 +111,7 @@ export function delegatedTaskResultPreview(output?: string) {
   if (!output) return undefined
 
   const tagged = output.match(TASK_RESULT_TAG)?.[1]
-  const normalized = (tagged ?? output)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !TASK_METADATA_LINE.test(line))
-
-  const first = normalized[0]
-  if (!first) return undefined
-
-  if (first.length <= TASK_RESULT_LINE_LIMIT) return first
-  return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
+  return firstPreviewLine(tagged ?? output)
 }
 
 export function delegatedTaskTerminalPreview(part: TaskToolPart) {
@@ -115,8 +119,8 @@ export function delegatedTaskTerminalPreview(part: TaskToolPart) {
   if (!lifecycle) return undefined
 
   if (lifecycle === "completed") return delegatedTaskResultPreview(part.state.output) ?? COMPLETED_WITHOUT_RESULT
-  if (lifecycle === "failed") return part.state.error?.trim() || "Task failed"
-  if (lifecycle === "cancelled") return part.state.error?.trim() || "Task cancelled"
+  if (lifecycle === "failed") return firstPreviewLine(part.state.error) ?? "Task failed"
+  if (lifecycle === "cancelled") return firstPreviewLine(part.state.error) ?? "Task cancelled"
 
   return undefined
 }

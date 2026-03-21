@@ -134,7 +134,7 @@ describe("delegated task lifecycle", () => {
     ).toBe(`${"x".repeat(119)}…`)
   })
 
-  test("picks the latest completed delegated task preview", () => {
+  test("picks the latest successfully completed delegated task preview", () => {
     expect(
       delegatedTaskLatestCompletedPreview([
         taskPart({ status: "pending", input: {} }),
@@ -143,6 +143,18 @@ describe("delegated task lifecycle", () => {
         taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
       ]),
     ).toBe("Latest result")
+
+    expect(
+      delegatedTaskLatestCompletedPreview([
+        taskPart({ status: "completed", input: {}, output: "<task_result>Good result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>Cancelled result</task_result>",
+          metadata: { lifecycle: "cancelled" },
+        }),
+      ]),
+    ).toBe("Good result")
 
     expect(delegatedTaskLatestCompletedPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })

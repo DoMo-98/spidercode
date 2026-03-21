@@ -107,9 +107,7 @@ export function delegatedTaskResultPreview(output?: string) {
 }
 
 export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {
-  const latestCompleted = [...parts]
-    .reverse()
-    .find((part) => part.tool === "task" && part.state.status === "completed")
+  const latestCompleted = [...parts].reverse().find((part) => delegatedTaskLifecycle(part) === "completed")
 
   return delegatedTaskResultPreview(latestCompleted?.state.output)
 }

@@ -103,7 +103,38 @@ describe("task-state", () => {
         failed: 0,
         cancelled: 0,
       },
-      text: "3 subagents · 1 queued · 1 running · 1 completed",
+      verificationMissing: 1,
+      text: "3 subagents · 1 queued · 1 running · 1 completed · 1 verification missing",
+    })
+  })
+
+  test("tracks verification gaps in compact lifecycle summaries", () => {
+    expect(
+      delegatedTaskLifecycleSummary([
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Verified result", "Verification: bun test", "</task_result>"].join("\n"),
+          time: { start: 1, end: 2 },
+        }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Unverified result", "</task_result>"].join("\n"),
+          time: { start: 3, end: 4 },
+        }),
+      ]),
+    ).toEqual({
+      total: 2,
+      counts: {
+        queued: 0,
+        running: 0,
+        completed: 2,
+        failed: 0,
+        cancelled: 0,
+      },
+      verificationMissing: 1,
+      text: "2 subagents · 2 completed · 1 verification missing",
     })
   })
 

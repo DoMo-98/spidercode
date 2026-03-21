@@ -100,10 +100,19 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
     if (count === 0) return []
     return `${count} ${delegatedTaskLifecycleLabel(lifecycle).toLowerCase()}`
   })
+  const verificationMissing = parts.filter((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "completed" && !delegatedTaskHasVerificationEvidence(part.state.output)
+  }).length
+
+  if (verificationMissing > 0) {
+    segments.push(`${verificationMissing} verification missing`)
+  }
 
   return {
     total,
     counts,
+    verificationMissing,
     text: `${total} subagent${total === 1 ? "" : "s"} · ${segments.join(" · ")}`,
   }
 }

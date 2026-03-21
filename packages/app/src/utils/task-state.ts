@@ -7,6 +7,7 @@ export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number
 const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
 const TASK_METADATA_LINE = /^task_[a-z0-9_-]+:\s/i
+const TASK_VERIFICATION_LINE = /^(verification|verified|tests?|checks?):\s/i
 const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
 
 function firstPreviewLine(text?: string) {
@@ -107,18 +108,37 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
   }
 }
 
-export function delegatedTaskResultPreview(output?: string) {
+function taskResultBody(output?: string) {
   if (!output) return undefined
+  return output.match(TASK_RESULT_TAG)?.[1] ?? output
+}
 
-  const tagged = output.match(TASK_RESULT_TAG)?.[1]
-  return firstPreviewLine(tagged ?? output)
+export function delegatedTaskResultPreview(output?: string) {
+  return firstPreviewLine(taskResultBody(output))
+}
+
+export function delegatedTaskHasVerificationEvidence(output?: string) {
+  const body = taskResultBody(output)
+  if (!body) return false
+
+  return body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => TASK_VERIFICATION_LINE.test(line))
 }
 
 export function delegatedTaskTerminalPreview(part: TaskToolPart) {
   const lifecycle = delegatedTaskLifecycle(part)
   if (!lifecycle) return undefined
 
-  if (lifecycle === "completed") return delegatedTaskResultPreview(part.state.output) ?? COMPLETED_WITHOUT_RESULT
+  if (lifecycle === "completed") {
+    const preview = delegatedTaskResultPreview(part.state.output)
+    if (!preview) return COMPLETED_WITHOUT_RESULT
+    if (!delegatedTaskHasVerificationEvidence(part.state.output)) {
+      return `${preview} · verification missing`
+    }
+    return preview
+  }
   if (lifecycle === "failed") return firstPreviewLine(part.state.error) ?? "Task failed"
   if (lifecycle === "cancelled") return firstPreviewLine(part.state.error) ?? "Task cancelled"
 

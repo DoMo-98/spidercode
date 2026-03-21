@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  delegatedTaskHasVerificationEvidence,
   delegatedTaskLatestTerminalPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
@@ -127,10 +128,42 @@ describe("task-state", () => {
     ).toBe(`${"x".repeat(119)}…`)
   })
 
+  test("detects verification evidence in delegated task results", () => {
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Tests: bun test packages/app/src/utils/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(delegatedTaskHasVerificationEvidence("<task_result>Done</task_result>")).toBe(false)
+  })
+
   test("builds terminal previews for completed, failed, and cancelled delegated tasks", () => {
     expect(
-      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Done", "Verification: bun test", "</task_result>"].join("\n"),
+        }),
+      ),
     ).toBe("Done")
+
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
+    ).toBe("Done · verification missing")
 
     expect(
       delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "task_id: session_123\n\n" })),
@@ -157,7 +190,11 @@ describe("task-state", () => {
     expect(
       delegatedTaskLatestTerminalPreview([
         taskPart({ status: "pending", input: {} }),
-        taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>First result\nVerification: bun test</task_result>",
+        }),
         taskPart({ status: "running", input: {} }),
         taskPart({ status: "error", input: {}, error: "Latest failure" }),
       ]),
@@ -166,7 +203,11 @@ describe("task-state", () => {
     expect(
       delegatedTaskLatestTerminalPreview([
         taskPart({ status: "running", input: {} }),
-        taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>Latest result\nVerification: bun test</task_result>",
+        }),
       ]),
     ).toBe("Latest result")
 

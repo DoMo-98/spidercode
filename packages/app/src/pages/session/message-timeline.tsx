@@ -30,7 +30,11 @@ import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
 import { sessionDescendantID } from "@/pages/session/composer/session-request-tree"
-import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
+import {
+  delegatedTaskActivePreview,
+  delegatedTaskLatestCompletedPreview,
+  delegatedTaskLifecycleSummary,
+} from "@/utils/task-state"
 
 type MessageComment = {
   path: string
@@ -316,6 +320,7 @@ export function MessageTimeline(props: {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
+  const activeTaskPreview = createMemo(() => delegatedTaskActivePreview(taskParts()))
   const completedTaskPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
   const activeChildSessionID = createMemo(() => {
     const id = sessionID()
@@ -781,8 +786,9 @@ export function MessageTimeline(props: {
                       <Show when={!parentID() && subagentSummary()}>
                         {(summary) => {
                           const summaryText = () => summary().text
+                          const activePreview = () => activeTaskPreview()
                           const preview = () => completedTaskPreview()
-                          const title = () => (preview() ? `${summaryText()}\n${preview()}` : summaryText())
+                          const title = () => [summaryText(), activePreview(), preview()].filter(Boolean).join("\n")
 
                           return (
                             <div class="min-w-0 flex flex-col gap-0.5">
@@ -800,7 +806,14 @@ export function MessageTimeline(props: {
                                   {summaryText()}
                                 </button>
                               </Show>
-                              <Show when={preview()}>
+                              <Show when={activePreview()}>
+                                {(text) => (
+                                  <div class="text-12-regular text-text-subtle truncate" title={text()}>
+                                    {text()}
+                                  </div>
+                                )}
+                              </Show>
+                              <Show when={!activePreview() && preview()}>
                                 {(text) => (
                                   <div class="text-12-regular text-text-subtle truncate" title={text()}>
                                     {text()}

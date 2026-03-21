@@ -106,6 +106,35 @@ export function delegatedTaskResultPreview(output?: string) {
   return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
 }
 
+function delegatedTaskDescription(part: TaskToolPart) {
+  const description = part.state.input?.description
+  if (typeof description !== "string") return undefined
+
+  const normalized = description.trim()
+  return normalized || undefined
+}
+
+export function delegatedTaskActivePreview(parts: TaskToolPart[]) {
+  const active = parts.filter((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "running" || lifecycle === "queued"
+  })
+  if (active.length === 0) return undefined
+
+  const labels = active
+    .map(delegatedTaskDescription)
+    .filter((value): value is string => Boolean(value))
+
+  if (labels.length === 0) {
+    return active.length === 1 ? "1 active subagent" : `${active.length} active subagents`
+  }
+
+  const unique = [...new Set(labels)]
+  const visible = unique.slice(0, 2)
+  const suffix = unique.length > visible.length ? ` +${unique.length - visible.length} more` : ""
+  return `${visible.join(" · ")}${suffix}`
+}
+
 export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {
   const latestCompleted = [...parts].reverse().find((part) => delegatedTaskLifecycle(part) === "completed")
 

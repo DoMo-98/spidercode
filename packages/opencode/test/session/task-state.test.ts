@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import {
   delegatedTaskLatestCompletedPreview,
+  delegatedTaskLatestTerminalPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
   delegatedTaskLifecycleLabel,
   delegatedTaskLifecycleSummary,
   delegatedTaskResultPreview,
+  delegatedTaskTerminalPreview,
 } from "../../src/session/task-state"
 
 function taskPart(state: any) {
@@ -109,7 +111,8 @@ describe("delegated task lifecycle", () => {
         failed: 1,
         cancelled: 0,
       },
-      text: "4 subagents · 1 queued · 1 running · 1 completed · 1 failed",
+      verificationMissing: 1,
+      text: "4 subagents · 1 queued · 1 running · 1 completed · 1 failed · 1 verification missing",
     })
 
     expect(delegatedTaskLifecycleSummary([{ tool: "bash", state: { status: "completed" } }] as any)).toBeUndefined()
@@ -128,10 +131,58 @@ describe("delegated task lifecycle", () => {
     ).toBe("Implemented compact task result previews")
 
     expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
+    expect(delegatedTaskResultPreview("task_id: session_123\n\nTask did the thing")).toBe("Task did the thing")
+    expect(delegatedTaskResultPreview("task_id: session_123\n\n")).toBeUndefined()
 
     expect(
       delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
     ).toBe(`${"x".repeat(119)}…`)
+  })
+
+  test("builds terminal previews for completed, failed, and cancelled delegated tasks", () => {
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
+    ).toBe("Done · verification missing")
+
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "task_id: session_123\n\n" })),
+    ).toBe("Task completed without result summary")
+
+    expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "error",
+          input: {},
+          error: "task_id: session_123\n\nError: boom\n    at worker.ts:1:1",
+        }),
+      ),
+    ).toBe("Error: boom")
+
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "aborted", metadata: { cancelled: true } })),
+    ).toBe("aborted")
+  })
+
+  test("picks the latest terminal delegated task preview", () => {
+    expect(
+      delegatedTaskLatestTerminalPreview([
+        taskPart({ status: "pending", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({ status: "running", input: {} }),
+        taskPart({ status: "error", input: {}, error: "Latest failure" }),
+      ]),
+    ).toBe("Latest failure")
+
+    expect(
+      delegatedTaskLatestTerminalPreview([
+        taskPart({ status: "running", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
+      ]),
+    ).toBe("Latest result · verification missing")
+
+    expect(delegatedTaskLatestTerminalPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })
 
   test("picks the latest successfully completed delegated task preview", () => {

@@ -29,8 +29,8 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
-import { sessionDescendantID } from "@/pages/session/composer/session-request-tree"
-import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
+import { sessionDescendantID, sessionLatestDescendantID } from "@/pages/session/composer/session-request-tree"
+import { delegatedTaskLatestTerminalPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
   path: string
@@ -316,7 +316,7 @@ export function MessageTimeline(props: {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
-  const completedTaskPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
+  const completedTaskPreview = createMemo(() => delegatedTaskLatestTerminalPreview(taskParts()))
   const activeChildSessionID = createMemo(() => {
     const id = sessionID()
     if (!id) return
@@ -328,6 +328,11 @@ export function MessageTimeline(props: {
       const messages = sync.data.message[childID] ?? emptyMessages
       return messages.some((message) => message.role === "assistant" && typeof message.time.completed !== "number")
     })
+  })
+  const latestChildSessionID = createMemo(() => {
+    const id = sessionID()
+    if (!id) return
+    return sessionLatestDescendantID(sync.data.session ?? [], id)
   })
   const titleValue = createMemo(() => info()?.title)
   const shareUrl = createMemo(() => info()?.share?.url)
@@ -580,6 +585,12 @@ export function MessageTimeline(props: {
     navigate(`/${params.dir}/session/${id}`)
   }
 
+  const navigateLatestChild = () => {
+    const id = latestChildSessionID()
+    if (!id) return
+    navigate(`/${params.dir}/session/${id}`)
+  }
+
   const abortActiveChild = () => {
     const id = activeChildSessionID()
     if (!id) return
@@ -787,13 +798,13 @@ export function MessageTimeline(props: {
                           return (
                             <div class="min-w-0 flex flex-col gap-0.5">
                               <Show
-                                when={activeChildSessionID()}
+                                when={activeChildSessionID() || latestChildSessionID()}
                                 fallback={<div class="text-12-regular text-text-weak truncate">{summaryText()}</div>}
                               >
                                 <button
                                   type="button"
                                   class="text-12-regular text-text-weak truncate text-left hover:text-text-base transition-colors"
-                                  onClick={navigateActiveChild}
+                                  onClick={() => (activeChildSessionID() ? navigateActiveChild() : navigateLatestChild())}
                                   title={title()}
                                   aria-label={title()}
                                 >
@@ -887,6 +898,11 @@ export function MessageTimeline(props: {
                                     <DropdownMenu.ItemLabel>Cancel active subagent</DropdownMenu.ItemLabel>
                                   </DropdownMenu.Item>
                                 </>
+                              </Show>
+                              <Show when={!activeChildSessionID() && latestChildSessionID()}>
+                                <DropdownMenu.Item onSelect={navigateLatestChild}>
+                                  <DropdownMenu.ItemLabel>View latest subagent</DropdownMenu.ItemLabel>
+                                </DropdownMenu.Item>
                               </Show>
                               <DropdownMenu.Item onSelect={() => void archiveSession(id())}>
                                 <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>

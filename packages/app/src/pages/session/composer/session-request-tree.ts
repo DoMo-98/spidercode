@@ -39,6 +39,26 @@ export function sessionDescendantID(session: Session[], sessionID: string | unde
   return sessionDescendantIDs(session, sessionID).find(include)
 }
 
+export function sessionLatestDescendantID(session: Session[], sessionID?: string) {
+  const descendants = sessionDescendantIDs(session, sessionID)
+  if (descendants.length === 0) return
+
+  const byID = new Map(session.map((item) => [item.id, item]))
+  return descendants.reduce<string | undefined>((latestID, id) => {
+    const current = byID.get(id)
+    if (!current) return latestID
+    if (!latestID) return id
+
+    const latest = byID.get(latestID)
+    if (!latest) return id
+
+    const currentTime = current.time?.updated ?? current.time?.created ?? 0
+    const latestTime = latest.time?.updated ?? latest.time?.created ?? 0
+
+    return currentTime >= latestTime ? id : latestID
+  }, undefined)
+}
+
 function sessionTreeRequest<T>(
   session: Session[],
   request: Record<string, T[] | undefined>,

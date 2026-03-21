@@ -6,6 +6,23 @@ export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number
 
 const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
+const TASK_METADATA_LINE = /^task_[a-z0-9_-]+:\s/i
+const TASK_VERIFICATION_LINE = /^(verification|verified|tests?|checks?):\s/i
+const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
+
+function firstPreviewLine(text?: string) {
+  if (!text) return undefined
+
+  const first = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .find((line) => !TASK_METADATA_LINE.test(line))
+
+  if (!first) return undefined
+  if (first.length <= TASK_RESULT_LINE_LIMIT) return first
+  return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
+}
 
 type TaskToolPart = {
   tool: string
@@ -13,6 +30,7 @@ type TaskToolPart = {
     status: "pending" | "running" | "completed" | "error"
     metadata?: Record<string, unknown>
     output?: string
+    error?: string
   }
 }
 
@@ -82,28 +100,69 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
     if (count === 0) return []
     return `${count} ${delegatedTaskLifecycleLabel(lifecycle).toLowerCase()}`
   })
+  const verificationMissing = parts.filter((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "completed" && !delegatedTaskHasVerificationEvidence(part.state.output)
+  }).length
+
+  if (verificationMissing > 0) {
+    segments.push(`${verificationMissing} verification missing`)
+  }
 
   return {
     total,
     counts,
+    verificationMissing,
     text: `${total} subagent${total === 1 ? "" : "s"} · ${segments.join(" · ")}`,
   }
 }
 
-export function delegatedTaskResultPreview(output?: string) {
+function taskResultBody(output?: string) {
   if (!output) return undefined
+  return output.match(TASK_RESULT_TAG)?.[1] ?? output
+}
 
-  const tagged = output.match(TASK_RESULT_TAG)?.[1] ?? output
-  const normalized = tagged
+export function delegatedTaskResultPreview(output?: string) {
+  return firstPreviewLine(taskResultBody(output))
+}
+
+export function delegatedTaskHasVerificationEvidence(output?: string) {
+  const body = taskResultBody(output)
+  if (!body) return false
+
+  return body
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean)
+    .some((line) => TASK_VERIFICATION_LINE.test(line))
+}
 
-  const first = normalized[0]
-  if (!first) return undefined
+export function delegatedTaskTerminalPreview(part: TaskToolPart) {
+  const lifecycle = delegatedTaskLifecycle(part)
+  if (!lifecycle) return undefined
 
-  if (first.length <= TASK_RESULT_LINE_LIMIT) return first
-  return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
+  if (lifecycle === "completed") {
+    const preview = delegatedTaskResultPreview(part.state.output)
+    if (!preview) return COMPLETED_WITHOUT_RESULT
+    if (!delegatedTaskHasVerificationEvidence(part.state.output)) {
+      return `${preview} · verification missing`
+    }
+    return preview
+  }
+  if (lifecycle === "failed") return firstPreviewLine(part.state.error) ?? "Task failed"
+  if (lifecycle === "cancelled") return firstPreviewLine(part.state.error) ?? "Task cancelled"
+
+  return undefined
+}
+
+export function delegatedTaskLatestTerminalPreview(parts: TaskToolPart[]) {
+  const latestTerminal = [...parts]
+    .reverse()
+    .find((part) => {
+      const lifecycle = delegatedTaskLifecycle(part)
+      return lifecycle === "completed" || lifecycle === "failed" || lifecycle === "cancelled"
+    })
+
+  return latestTerminal ? delegatedTaskTerminalPreview(latestTerminal) : undefined
 }
 
 export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {

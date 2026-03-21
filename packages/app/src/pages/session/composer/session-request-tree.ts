@@ -35,6 +35,10 @@ export function sessionDescendantIDs(session: Session[], sessionID?: string) {
   return ids.slice(1)
 }
 
+export function sessionDescendantID(session: Session[], sessionID: string | undefined, include: (id: string) => boolean) {
+  return sessionDescendantIDs(session, sessionID).find(include)
+}
+
 function sessionTreeRequest<T>(
   session: Session[],
   request: Record<string, T[] | undefined>,

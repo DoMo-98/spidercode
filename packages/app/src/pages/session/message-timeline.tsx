@@ -29,7 +29,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
-import { sessionDescendantIDs } from "@/pages/session/composer/session-request-tree"
+import { sessionDescendantID } from "@/pages/session/composer/session-request-tree"
 import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
@@ -321,8 +321,7 @@ export function MessageTimeline(props: {
     const id = sessionID()
     if (!id) return
 
-    const descendants = sessionDescendantIDs(sync.data.session ?? [], id)
-    return descendants.find((childID) => {
+    return sessionDescendantID(sync.data.session ?? [], id, (childID) => {
       const status = sync.data.session_status[childID]
       if (status?.type && status.type !== "idle") return true
 
@@ -579,6 +578,20 @@ export function MessageTimeline(props: {
     const id = activeChildSessionID()
     if (!id) return
     navigate(`/${params.dir}/session/${id}`)
+  }
+
+  const abortActiveChild = () => {
+    const id = activeChildSessionID()
+    if (!id) return
+
+    sdk.client.session.abort({ sessionID: id }).catch((err: unknown) => {
+      console.error("Failed to abort active subagent", err)
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: err instanceof Error ? err.message : String(err),
+      })
+    })
   }
 
   function DialogDeleteSession(props: { sessionID: string }) {
@@ -864,6 +877,16 @@ export function MessageTimeline(props: {
                                     {language.t("session.share.action.share")}
                                   </DropdownMenu.ItemLabel>
                                 </DropdownMenu.Item>
+                              </Show>
+                              <Show when={activeChildSessionID()}>
+                                <>
+                                  <DropdownMenu.Item onSelect={navigateActiveChild}>
+                                    <DropdownMenu.ItemLabel>View active subagent</DropdownMenu.ItemLabel>
+                                  </DropdownMenu.Item>
+                                  <DropdownMenu.Item onSelect={abortActiveChild}>
+                                    <DropdownMenu.ItemLabel>Cancel active subagent</DropdownMenu.ItemLabel>
+                                  </DropdownMenu.Item>
+                                </>
                               </Show>
                               <DropdownMenu.Item onSelect={() => void archiveSession(id())}>
                                 <DropdownMenu.ItemLabel>{language.t("common.archive")}</DropdownMenu.ItemLabel>

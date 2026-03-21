@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { PermissionRequest, QuestionRequest, Session } from "@opencode-ai/sdk/v2/client"
 import {
+  sessionDescendantID,
   sessionDescendantIDs,
   sessionPermissionRequest,
   sessionQuestionRequest,
@@ -70,5 +71,18 @@ describe("session request tree", () => {
     ]
 
     expect(sessionDescendantIDs(sessions, "root")).toEqual(["child", "grand"])
+  })
+
+  test("returns the first matching descendant id in breadth-first order", () => {
+    const sessions = [
+      session({ id: "root" }),
+      session({ id: "child-a", parentID: "root" }),
+      session({ id: "child-b", parentID: "root" }),
+      session({ id: "grand", parentID: "child-a" }),
+    ]
+
+    expect(sessionDescendantID(sessions, "root", (id) => id.startsWith("child"))).toBe("child-a")
+    expect(sessionDescendantID(sessions, "root", (id) => id === "grand")).toBe("grand")
+    expect(sessionDescendantID(sessions, "root", (id) => id === "missing")).toBeUndefined()
   })
 })

@@ -17,7 +17,7 @@ function firstPreviewLine(text?: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .find((line) => !TASK_METADATA_LINE.test(line))
+    .find((line) => !TASK_METADATA_LINE.test(line) && !TASK_VERIFICATION_LINE.test(line))
 
   if (!first) return undefined
   if (first.length <= TASK_RESULT_LINE_LIMIT) return first
@@ -100,10 +100,19 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
     if (count === 0) return []
     return `${count} ${delegatedTaskLifecycleLabel(lifecycle).toLowerCase()}`
   })
+  const verificationMissing = parts.filter((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "completed" && !delegatedTaskHasVerificationEvidence(part.state.output)
+  }).length
+
+  if (verificationMissing > 0) {
+    segments.push(`${verificationMissing} verification missing`)
+  }
 
   return {
     total,
     counts,
+    verificationMissing,
     text: `${total} subagent${total === 1 ? "" : "s"} · ${segments.join(" · ")}`,
   }
 }

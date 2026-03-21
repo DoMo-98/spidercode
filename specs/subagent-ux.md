@@ -58,6 +58,7 @@ The parent should not spam passive updates.
 Instead, show:
 - a compact active-task surface in the UI
 - explicit updates only when something materially changes
+- short task descriptions for queued/running subagents when available
 
 ### On completion
 The parent should provide a concise synthesis:

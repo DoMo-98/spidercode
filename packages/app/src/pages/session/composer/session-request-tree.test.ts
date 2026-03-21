@@ -3,15 +3,23 @@ import type { PermissionRequest, QuestionRequest, Session } from "@opencode-ai/s
 import {
   sessionDescendantID,
   sessionDescendantIDs,
+  sessionLatestDescendantID,
   sessionPermissionRequest,
   sessionQuestionRequest,
   sessionTreeIDs,
 } from "./session-request-tree"
 
-const session = (input: { id: string; parentID?: string }) =>
+const session = (input: { id: string; parentID?: string; created?: number; updated?: number }) =>
   ({
     id: input.id,
     parentID: input.parentID,
+    time:
+      input.created || input.updated
+        ? {
+            created: input.created ?? input.updated ?? 0,
+            updated: input.updated,
+          }
+        : undefined,
   }) as Session
 
 const permission = (id: string, sessionID: string) =>
@@ -84,5 +92,18 @@ describe("session request tree", () => {
     expect(sessionDescendantID(sessions, "root", (id) => id.startsWith("child"))).toBe("child-a")
     expect(sessionDescendantID(sessions, "root", (id) => id === "grand")).toBe("grand")
     expect(sessionDescendantID(sessions, "root", (id) => id === "missing")).toBeUndefined()
+  })
+
+  test("returns the most recently updated descendant id", () => {
+    const sessions = [
+      session({ id: "root", created: 1 }),
+      session({ id: "child-a", parentID: "root", created: 2, updated: 4 }),
+      session({ id: "child-b", parentID: "root", created: 3, updated: 9 }),
+      session({ id: "grand", parentID: "child-a", created: 8 }),
+    ]
+
+    expect(sessionLatestDescendantID(sessions, "root")).toBe("child-b")
+    expect(sessionLatestDescendantID(sessions, "child-a")).toBe("grand")
+    expect(sessionLatestDescendantID(sessions, "missing")).toBeUndefined()
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  delegatedTaskLatestCompletedPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
   delegatedTaskLifecycleLabel,
@@ -121,5 +122,18 @@ describe("task-state", () => {
     expect(
       delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
     ).toBe(`${"x".repeat(119)}…`)
+  })
+
+  test("picks the latest completed delegated task preview", () => {
+    expect(
+      delegatedTaskLatestCompletedPreview([
+        taskPart({ status: "pending", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({ status: "running", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
+      ]),
+    ).toBe("Latest result")
+
+    expect(delegatedTaskLatestCompletedPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })
 })

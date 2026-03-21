@@ -30,7 +30,7 @@ import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
 import { sessionDescendantIDs } from "@/pages/session/composer/session-request-tree"
-import { delegatedTaskLifecycleSummary } from "@/utils/task-state"
+import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
   path: string
@@ -316,6 +316,7 @@ export function MessageTimeline(props: {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
+  const completedTaskPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
   const activeChildSessionID = createMemo(() => {
     const id = sessionID()
     if (!id) return
@@ -765,22 +766,37 @@ export function MessageTimeline(props: {
                         </Show>
                       </div>
                       <Show when={!parentID() && subagentSummary()}>
-                        {(summary) => (
-                          <Show
-                            when={activeChildSessionID()}
-                            fallback={<div class="text-12-regular text-text-weak truncate">{summary().text}</div>}
-                          >
-                            <button
-                              type="button"
-                              class="text-12-regular text-text-weak truncate text-left hover:text-text-base transition-colors"
-                              onClick={navigateActiveChild}
-                              title={summary().text}
-                              aria-label={summary().text}
-                            >
-                              {summary().text}
-                            </button>
-                          </Show>
-                        )}
+                        {(summary) => {
+                          const summaryText = () => summary().text
+                          const preview = () => completedTaskPreview()
+                          const title = () => (preview() ? `${summaryText()}\n${preview()}` : summaryText())
+
+                          return (
+                            <div class="min-w-0 flex flex-col gap-0.5">
+                              <Show
+                                when={activeChildSessionID()}
+                                fallback={<div class="text-12-regular text-text-weak truncate">{summaryText()}</div>}
+                              >
+                                <button
+                                  type="button"
+                                  class="text-12-regular text-text-weak truncate text-left hover:text-text-base transition-colors"
+                                  onClick={navigateActiveChild}
+                                  title={title()}
+                                  aria-label={title()}
+                                >
+                                  {summaryText()}
+                                </button>
+                              </Show>
+                              <Show when={preview()}>
+                                {(text) => (
+                                  <div class="text-12-regular text-text-subtle truncate" title={text()}>
+                                    {text()}
+                                  </div>
+                                )}
+                              </Show>
+                            </div>
+                          )
+                        }}
                       </Show>
                     </div>
                   </div>

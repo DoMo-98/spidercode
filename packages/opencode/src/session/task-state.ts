@@ -105,3 +105,11 @@ export function delegatedTaskResultPreview(output?: string) {
   if (first.length <= TASK_RESULT_LINE_LIMIT) return first
   return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
 }
+
+export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {
+  const latestCompleted = [...parts]
+    .reverse()
+    .find((part) => part.tool === "task" && part.state.status === "completed")
+
+  return delegatedTaskResultPreview(latestCompleted?.state.output)
+}

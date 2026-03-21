@@ -65,6 +65,7 @@ The parent should provide a concise synthesis:
 - what failed or remains blocked
 - what matters next
 - a short result preview drawn from the delegated outcome rather than raw worker logs
+- if the subagent finished without a usable result summary, show that explicitly instead of presenting task metadata as if it were the outcome
 
 ### On user request
 If the user asks for status, the parent should summarize active and recent subagents in one compact response.

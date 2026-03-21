@@ -6,6 +6,8 @@ export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number
 
 const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
+const TASK_METADATA_LINE = /^task_[a-z0-9_-]+:\s/i
+const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
 
 type TaskToolPart = {
   tool: string
@@ -94,11 +96,12 @@ export function delegatedTaskLifecycleSummary(parts: TaskToolPart[]) {
 export function delegatedTaskResultPreview(output?: string) {
   if (!output) return undefined
 
-  const tagged = output.match(TASK_RESULT_TAG)?.[1] ?? output
-  const normalized = tagged
+  const tagged = output.match(TASK_RESULT_TAG)?.[1]
+  const normalized = (tagged ?? output)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
+    .filter((line) => !TASK_METADATA_LINE.test(line))
 
   const first = normalized[0]
   if (!first) return undefined
@@ -111,7 +114,7 @@ export function delegatedTaskTerminalPreview(part: TaskToolPart) {
   const lifecycle = delegatedTaskLifecycle(part)
   if (!lifecycle) return undefined
 
-  if (lifecycle === "completed") return delegatedTaskResultPreview(part.state.output)
+  if (lifecycle === "completed") return delegatedTaskResultPreview(part.state.output) ?? COMPLETED_WITHOUT_RESULT
   if (lifecycle === "failed") return part.state.error?.trim() || "Task failed"
   if (lifecycle === "cancelled") return part.state.error?.trim() || "Task cancelled"
 

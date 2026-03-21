@@ -129,6 +129,8 @@ describe("delegated task lifecycle", () => {
     ).toBe("Implemented compact task result previews")
 
     expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
+    expect(delegatedTaskResultPreview("task_id: session_123\n\nTask did the thing")).toBe("Task did the thing")
+    expect(delegatedTaskResultPreview("task_id: session_123\n\n")).toBeUndefined()
 
     expect(
       delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
@@ -139,6 +141,10 @@ describe("delegated task lifecycle", () => {
     expect(
       delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
     ).toBe("Done")
+
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "task_id: session_123\n\n" })),
+    ).toBe("Task completed without result summary")
 
     expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")
 

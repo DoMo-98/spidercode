@@ -13,6 +13,7 @@ type TaskToolPart = {
     status: "pending" | "running" | "completed" | "error"
     metadata?: Record<string, unknown>
     output?: string
+    error?: string
   }
 }
 
@@ -106,10 +107,24 @@ export function delegatedTaskResultPreview(output?: string) {
   return `${first.slice(0, TASK_RESULT_LINE_LIMIT - 1).trimEnd()}…`
 }
 
-export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {
-  const latestCompleted = [...parts]
-    .reverse()
-    .find((part) => part.tool === "task" && part.state.status === "completed")
+export function delegatedTaskTerminalPreview(part: TaskToolPart) {
+  const lifecycle = delegatedTaskLifecycle(part)
+  if (!lifecycle) return undefined
 
-  return delegatedTaskResultPreview(latestCompleted?.state.output)
+  if (lifecycle === "completed") return delegatedTaskResultPreview(part.state.output)
+  if (lifecycle === "failed") return part.state.error?.trim() || "Task failed"
+  if (lifecycle === "cancelled") return part.state.error?.trim() || "Task cancelled"
+
+  return undefined
+}
+
+export function delegatedTaskLatestTerminalPreview(parts: TaskToolPart[]) {
+  const latestTerminal = [...parts]
+    .reverse()
+    .find((part) => {
+      const lifecycle = delegatedTaskLifecycle(part)
+      return lifecycle === "completed" || lifecycle === "failed" || lifecycle === "cancelled"
+    })
+
+  return latestTerminal ? delegatedTaskTerminalPreview(latestTerminal) : undefined
 }

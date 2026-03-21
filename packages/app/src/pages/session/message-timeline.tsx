@@ -30,7 +30,7 @@ import { useSync } from "@/context/sync"
 import { messageAgentColor } from "@/utils/agent"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
 import { sessionDescendantID } from "@/pages/session/composer/session-request-tree"
-import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
+import { delegatedTaskLatestTerminalPreview, delegatedTaskLifecycleSummary } from "@/utils/task-state"
 
 type MessageComment = {
   path: string
@@ -316,7 +316,7 @@ export function MessageTimeline(props: {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
-  const completedTaskPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
+  const completedTaskPreview = createMemo(() => delegatedTaskLatestTerminalPreview(taskParts()))
   const activeChildSessionID = createMemo(() => {
     const id = sessionID()
     if (!id) return

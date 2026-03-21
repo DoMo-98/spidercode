@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import {
-  delegatedTaskLatestCompletedPreview,
+  delegatedTaskLatestTerminalPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
   delegatedTaskLifecycleLabel,
   delegatedTaskLifecycleSummary,
   delegatedTaskResultPreview,
+  delegatedTaskTerminalPreview,
 } from "./task-state"
 
 function taskPart(state: Record<string, unknown>) {
@@ -124,16 +125,35 @@ describe("task-state", () => {
     ).toBe(`${"x".repeat(119)}…`)
   })
 
-  test("picks the latest completed delegated task preview", () => {
+  test("builds terminal previews for completed, failed, and cancelled delegated tasks", () => {
     expect(
-      delegatedTaskLatestCompletedPreview([
+      delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
+    ).toBe("Done")
+
+    expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")
+
+    expect(
+      delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "aborted", metadata: { cancelled: true } })),
+    ).toBe("aborted")
+  })
+
+  test("picks the latest terminal delegated task preview", () => {
+    expect(
+      delegatedTaskLatestTerminalPreview([
         taskPart({ status: "pending", input: {} }),
         taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({ status: "running", input: {} }),
+        taskPart({ status: "error", input: {}, error: "Latest failure" }),
+      ]),
+    ).toBe("Latest failure")
+
+    expect(
+      delegatedTaskLatestTerminalPreview([
         taskPart({ status: "running", input: {} }),
         taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
       ]),
     ).toBe("Latest result")
 
-    expect(delegatedTaskLatestCompletedPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
+    expect(delegatedTaskLatestTerminalPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })
 })

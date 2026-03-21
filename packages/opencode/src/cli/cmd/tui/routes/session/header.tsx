@@ -9,7 +9,7 @@ import { useCommandDialog } from "@tui/component/dialog-command"
 import { useKeybind } from "../../context/keybind"
 import { Flag } from "@/flag/flag"
 import { useTerminalDimensions } from "@opentui/solid"
-import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/session/task-state"
+import { delegatedTaskLatestTerminalPreview, delegatedTaskLifecycleSummary } from "@/session/task-state"
 
 const Title = (props: { session: Accessor<Session> }) => {
   const { theme } = useTheme()
@@ -56,7 +56,7 @@ export function Header() {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
-  const latestCompletedPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
+  const latestCompletedPreview = createMemo(() => delegatedTaskLatestTerminalPreview(taskParts()))
 
   const cost = createMemo(() => {
     const total = pipe(

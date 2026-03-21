@@ -17,7 +17,7 @@ function firstPreviewLine(text?: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .find((line) => !TASK_METADATA_LINE.test(line))
+    .find((line) => !TASK_METADATA_LINE.test(line) && !TASK_VERIFICATION_LINE.test(line))
 
   if (!first) return undefined
   if (first.length <= TASK_RESULT_LINE_LIMIT) return first

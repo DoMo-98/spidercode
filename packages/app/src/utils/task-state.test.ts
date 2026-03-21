@@ -150,6 +150,17 @@ describe("task-state", () => {
       ].join("\n")),
     ).toBe("Implemented compact task result previews")
 
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "Checks: bun test packages/app/src/utils/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBeUndefined()
+
     expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
     expect(delegatedTaskResultPreview("task_id: session_123\n\nTask did the thing")).toBe("Task did the thing")
     expect(delegatedTaskResultPreview("task_id: session_123\n\n")).toBeUndefined()
@@ -198,6 +209,21 @@ describe("task-state", () => {
 
     expect(
       delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "task_id: session_123\n\n" })),
+    ).toBe("Task completed without result summary")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "Verification: bun test packages/app/src/utils/task-state.test.ts",
+            "Checks: bun test packages/app/src/utils/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
     ).toBe("Task completed without result summary")
 
     expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")

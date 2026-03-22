@@ -2,7 +2,7 @@
 
 ## Goal
 
-Turn the main Spidercode chat into a pure orchestrator that delegates all meaningful task work to subagents.
+Turn the main Spidercode chat into a true orchestrator that delegates all meaningful task work to subagents.
 
 ## Core rule
 
@@ -15,8 +15,21 @@ It may:
 - create and steer subagents
 - report status
 - summarize results
+- do lightweight coordination reasoning needed to supervise execution
 
-It must not become the execution surface for the work it orchestrates.
+It must not become the default execution surface for the work it orchestrates.
+
+## What should usually be delegated
+
+Meaningful task work means substantial implementation, inspection, validation, or synthesis that would otherwise pollute the control plane. That typically includes:
+- code edits
+- repository inspection and diagnosis
+- tests, builds, and validation steps
+- multi-step documentation work
+- scoped implementation subtasks
+- deeper investigation work that would otherwise pollute the control plane
+
+The parent may still do minimal coordination work directly, but substantial execution should not stay in the parent thread by default.
 
 ## Why
 
@@ -31,6 +44,7 @@ A developer should be able to:
 - inspect compact status for active subagents
 - redirect or cancel work without losing the conversation
 - receive a final synthesis when delegated work completes
+- understand active work without opening worker transcripts by default
 
 ## Lifecycle
 
@@ -60,7 +74,9 @@ The minimum useful state surface is:
 
 A delegated task marked `completed` should still surface caution when its returned summary lacks verification evidence or a usable result summary. The parent must avoid presenting bare process exit as equivalent to a trustworthy outcome.
 
-That caution should remain visible even in compact status surfaces. A glanceable summary may stay terse, but it should still signal when one or more completed delegated results are missing verification evidence.
+Execution status and result trustworthiness are related but not identical signals.
+That distinction should remain visible even in compact status surfaces.
+A glanceable summary may stay terse, but it should still signal when one or more completed delegated results are missing verification evidence.
 
 Optional future states:
 - blocked
@@ -81,6 +97,9 @@ The interface should avoid flooding the main chat with raw worker output.
 ### Traceability
 It should remain possible to inspect what happened when needed.
 
+### Legibility
+Delegation should be explicit enough that users understand what the system is doing without needing to reconstruct it from logs.
+
 ## Phase 1 implementation boundary
 
 Phase 1 should support:
@@ -88,6 +107,7 @@ Phase 1 should support:
 - mandatory delegation for non-trivial work
 - compact active task visibility
 - final synthesized reporting
+- visible distinction between execution completion and trustworthy outcome reporting when relevant
 
 Phase 1 should not require:
 - deep recursive hierarchies
@@ -103,3 +123,4 @@ A Phase 1 implementation is successful if the answer is yes to these:
 - Can the user understand what is running without reading noise?
 - Does task isolation improve reliability and clarity?
 - Does the experience feel better than a single overloaded chat?
+- Is completion kept meaningfully distinct from confidence in the returned result?

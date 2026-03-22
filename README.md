@@ -1,141 +1,156 @@
-<p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
-</p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+# Spidercode
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
+Spidercode is an orchestration-first coding environment for developers who want to keep the main chat clean while real work happens in delegated execution threads.
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+Its core idea is simple:
 
----
+**the main chat is the control plane, not the default worker.**
 
-### Installation
+The top-level parent agent should stay available in a single conversation, interpret requests, coordinate work, and delegate meaningful execution to subagents.
 
-```bash
-# YOLO
-curl -fsSL https://opencode.ai/install | bash
+## Why Spidercode exists
 
-# Package managers
-npm i -g opencode-ai@latest        # or bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
-```
+Most coding-agent tools collapse planning, execution, logging, and conversation into the same thread.
+That works for small tasks, but it breaks down fast as complexity grows:
 
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
+- user conversation gets buried under execution noise
+- planning and implementation contaminate each other
+- status updates become log spam
+- complex work becomes harder to supervise
+- the main agent accumulates too much context and gets worse over time
 
-### Desktop App (BETA)
+Spidercode separates those concerns on purpose.
 
-OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).
+## What Spidercode is for
 
-| Platform              | Download                              |
-| --------------------- | ------------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-darwin-aarch64.dmg` |
-| macOS (Intel)         | `opencode-desktop-darwin-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, or AppImage           |
+Spidercode is for developers who:
 
-```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
-```
+- use coding agents regularly and want less context overload
+- want delegation without losing control
+- need execution to stay visible without flooding the interface
+- want multi-step work to feel coordinated instead of chaotic
+- care more about clarity, trust, and DX than agent theatrics
 
-#### Installation Directory
+## Intended operating model
 
-The install script respects the following priority order for the installation path:
+Spidercode is built around a simple execution model:
 
-1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.opencode/bin` - Default fallback
+1. the user stays in one main conversation
+2. the parent agent interprets the request
+3. the parent decomposes the work into meaningful subtasks
+4. the parent dispatches subagents to execute those tasks
+5. the parent reports compact runtime state and progress
+6. the parent synthesizes outcomes back into a clean user-facing result
 
-```bash
-# Examples
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
-```
+The goal is not to make the parent do everything more efficiently.
+The goal is to make the parent do less execution work directly.
 
-### Agents
+## Core principles
 
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
+- **The control plane stays readable**
+  - The main chat should remain useful to the human throughout the task.
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+- **Execution belongs to workers**
+  - Real implementation, inspection, testing, and heavy task work should happen in delegated execution paths.
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+- **Delegation must remain legible**
+  - Users should be able to understand what is running, why it is running, and what came back.
 
-Learn more about [agents](https://opencode.ai/docs/agents).
+- **Results should come back distilled**
+  - The parent should return synthesis, outcomes, risks, and next steps — not dump raw noise by default.
 
-### Documentation
+- **Hierarchy is a tool, not a gimmick**
+  - Multi-level delegation only matters when it improves clarity, reliability, or developer experience.
 
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
+## What “meaningful work” means
 
-### Contributing
+In Spidercode, meaningful work usually means substantial implementation, inspection, validation, or synthesis that would otherwise pollute the control plane. That typically includes:
 
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+- multi-file code changes
+- repository inspection and diagnosis
+- running tests, builds, or validation steps
+- documentation drafting or restructuring
+- implementation of scoped subtasks
+- synthesizing findings from deeper execution threads
 
-### Building on OpenCode
+The parent agent may still do lightweight coordination work directly, but it should not become the default place where substantial execution happens.
 
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+## What success looks like
 
-### FAQ
+Spidercode is successful when:
 
-#### How is this different from Claude Code?
+- the main chat stays readable during real work
+- delegated execution is reliable enough for daily use
+- users can see progress without being flooded by logs
+- multi-step tasks feel lighter, not heavier
+- the parent behaves like an orchestrator instead of a noisy all-purpose worker
 
-It's very similar to Claude Code in terms of capability. Here are the key differences:
+## Current direction
 
-- 100% open source
-- Not coupled to any provider. Although we recommend the models we provide through [OpenCode Zen](https://opencode.ai/zen), OpenCode can be used with Claude, OpenAI, Google, or even local models. As models evolve, the gaps between them will close and pricing will drop, so being provider-agnostic is important.
-- Out-of-the-box LSP support
-- A focus on TUI. OpenCode is built by neovim users and the creators of [terminal.shop](https://terminal.shop); we are going to push the limits of what's possible in the terminal.
-- A client/server architecture. This, for example, can allow OpenCode to run on your computer while you drive it remotely from a mobile app, meaning that the TUI frontend is just one of the possible clients.
+Current product priority order:
 
----
+1. Make the top-level parent agent a true orchestrator
+2. Make delegated execution reliable for real work
+3. Add controlled hierarchical execution where it improves outcomes
+4. Harden trust, observability, and developer experience
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+## Example workflow
+
+A typical Spidercode flow looks like this:
+
+1. the user asks for a feature, fix, refactor, or investigation
+2. the parent agent scopes the work and decides what should be delegated
+3. one or more subagents execute the implementation or analysis
+4. the parent shows compact progress and runtime state
+5. the parent returns an executive summary with results, evidence, risks, and next steps
+
+This keeps the human in one place while still allowing real execution depth behind the scenes.
+
+## Terminal-first by design
+
+Spidercode is currently terminal-first by design.
+
+That is a deliberate product choice, not just a temporary constraint:
+
+- terminal workflows make orchestration easier to inspect
+- iteration is faster when the control surface is compact
+- automation is easier to compose in a text-first environment
+- execution traces are easier to reason about
+
+A richer interface may grow over time, but the core model should remain useful even without one.
+
+## Non-goals
+
+Spidercode is intentionally not trying to become:
+
+- a generic autonomous swarm playground
+- a chat-as-IDE noise machine
+- a maximalist framework built ahead of proven value
+- a feature pile optimized for demos over daily usefulness
+- a system that removes human oversight from meaningful coding work
+
+## Project status
+
+**Status:** active exploration and phase-1 foundation building around orchestrator-first execution.
+
+The project is currently focused on making the model real and usable before broadening scope.
+
+## Key docs
+
+- `ROADMAP.md` — product roadmap and delivery phases
+- `specs/spidercode.md` — product vision, principles, and non-goals
+- `specs/orchestrator.md` — top-level orchestrator execution model
+- `specs/project.md` — multi-project and worktree-oriented project/session API notes
+
+## Relationship to OpenCode
+
+Spidercode started as a fork of OpenCode.
+
+OpenCode provided a strong product and runtime base.
+Spidercode builds from that foundation while diverging where necessary to pursue a more explicit orchestrator-first model centered on delegated execution, hierarchical work, and a cleaner control-plane experience.
+
+## Working rule
+
+Until proven otherwise:
+
+**the top-level parent agent should delegate meaningful work.**

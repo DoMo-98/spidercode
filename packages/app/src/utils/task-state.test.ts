@@ -198,7 +198,45 @@ describe("task-state", () => {
       ].join("\n")),
     ).toBe(true)
 
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "- [x] Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
     expect(delegatedTaskHasVerificationEvidence("<task_result>Done</task_result>")).toBe(false)
+  })
+
+  test("ignores checklist-prefixed verification lines when building previews", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "- [x] Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "- [x] Checks: bun test packages/app/src/utils/task-state.test.ts",
+        "Implemented compact task result previews",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "- [x] Verification: bun test packages/app/src/utils/task-state.test.ts",
+            "- [x] Checks: bun test packages/app/src/utils/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
+    ).toBe("Task completed without result summary")
   })
 
   test("ignores bullet-prefixed verification lines when building previews", () => {

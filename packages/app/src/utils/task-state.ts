@@ -6,7 +6,7 @@ export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number
 
 const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
-const TASK_LIST_PREFIX = /^(?:[-*•]|\d+\.)\s*/
+const TASK_LIST_PREFIX = /^(?:(?:[-*•]|\d+\.)\s*)?(?:\[[ xX]\]\s*)?/
 const TASK_METADATA_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?task_[a-z0-9_-]+:\\s`, "i")
 const TASK_VERIFICATION_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?(verification|verified|tests?|checks?):\\s`, "i")
 const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"

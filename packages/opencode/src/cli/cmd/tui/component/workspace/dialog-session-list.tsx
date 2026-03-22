@@ -72,8 +72,10 @@ export function DialogSessionList(props: { workspaceID?: string; localOnly?: boo
           category = "Today"
         }
         const isDeleting = toDelete() === x.id
-        const status = sync.data.session_status?.[x.id]
-        const isWorking = status ? SessionStatus.isActive(status) : false
+        const isWorking = SessionStatus.hasActiveInTree(x.id, {
+          sessions: sessions(),
+          statuses: sync.data.session_status,
+        })
         return {
           title: isDeleting ? `Press ${keybind.print("session_delete")} again to confirm` : x.title,
           bg: isDeleting ? theme.error : undefined,

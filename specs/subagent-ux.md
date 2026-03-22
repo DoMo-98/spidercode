@@ -74,6 +74,7 @@ If the user asks for status, the parent should summarize active and recent subag
 
 The parent session should make it easy to:
 - see active child sessions
+- see parent/root sessions marked active when delegated child work is still running
 - switch into a child when needed
 - return to the parent quickly
 - understand overall progress without opening every child

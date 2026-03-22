@@ -58,6 +58,40 @@ export namespace SessionStatus {
     )
   }
 
+  export function hasActiveInTree(
+    sessionID: string,
+    input: {
+      sessions: Array<{ id: string; parentID?: string }>
+      statuses?: Record<string, { type: string; [key: string]: unknown }>
+    },
+  ) {
+    const childrenByParent = new Map<string, string[]>()
+    for (const session of input.sessions) {
+      if (!session.parentID) continue
+      const siblings = childrenByParent.get(session.parentID) ?? []
+      siblings.push(session.id)
+      childrenByParent.set(session.parentID, siblings)
+    }
+
+    const queue = [sessionID]
+    const seen = new Set<string>()
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      if (seen.has(current)) continue
+      seen.add(current)
+
+      const status = input.statuses?.[current]
+      if (status && isActive(status)) return true
+
+      const children = childrenByParent.get(current)
+      if (!children) continue
+      queue.push(...children)
+    }
+
+    return false
+  }
+
   const state = Instance.state(() => {
     const data: Record<string, Info> = {}
     return data

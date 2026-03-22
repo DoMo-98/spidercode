@@ -189,7 +189,45 @@ describe("task-state", () => {
       ].join("\n")),
     ).toBe(true)
 
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "- Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
     expect(delegatedTaskHasVerificationEvidence("<task_result>Done</task_result>")).toBe(false)
+  })
+
+  test("ignores bullet-prefixed verification lines when building previews", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "- Verification: bun test packages/app/src/utils/task-state.test.ts",
+        "- Checks: bun test packages/app/src/utils/task-state.test.ts",
+        "Implemented compact task result previews",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "- Verification: bun test packages/app/src/utils/task-state.test.ts",
+            "- Checks: bun test packages/app/src/utils/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
+    ).toBe("Task completed without result summary")
   })
 
   test("builds terminal previews for completed, failed, and cancelled delegated tasks", () => {

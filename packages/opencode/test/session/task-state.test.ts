@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
+  delegatedTaskActivePreview,
+  delegatedTaskHasVerificationEvidence,
   delegatedTaskLatestCompletedPreview,
   delegatedTaskLatestTerminalPreview,
   delegatedTaskLifecycle,
@@ -118,6 +120,36 @@ describe("delegated task lifecycle", () => {
     expect(delegatedTaskLifecycleSummary([{ tool: "bash", state: { status: "completed" } }] as any)).toBeUndefined()
   })
 
+  test("tracks verification gaps in compact delegated task summaries", () => {
+    expect(
+      delegatedTaskLifecycleSummary([
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Verified result", "Verification: bun test", "</task_result>"].join("\n"),
+          time: { start: 1, end: 2 },
+        }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Unverified result", "</task_result>"].join("\n"),
+          time: { start: 3, end: 4 },
+        }),
+      ] as any),
+    ).toEqual({
+      total: 2,
+      counts: {
+        queued: 0,
+        running: 0,
+        completed: 2,
+        failed: 0,
+        cancelled: 0,
+      },
+      verificationMissing: 1,
+      text: "2 subagents · 2 completed · 1 verification missing",
+    })
+  })
+
   test("extracts a concise delegated task result preview", () => {
     expect(
       delegatedTaskResultPreview([
@@ -130,6 +162,17 @@ describe("delegated task lifecycle", () => {
       ].join("\n")),
     ).toBe("Implemented compact task result previews")
 
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "Checks: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBeUndefined()
+
     expect(delegatedTaskResultPreview("\n\nPlain result without tags\nSecond line")).toBe("Plain result without tags")
     expect(delegatedTaskResultPreview("task_id: session_123\n\nTask did the thing")).toBe("Task did the thing")
     expect(delegatedTaskResultPreview("task_id: session_123\n\n")).toBeUndefined()
@@ -139,13 +182,158 @@ describe("delegated task lifecycle", () => {
     ).toBe(`${"x".repeat(119)}…`)
   })
 
+  test("builds a compact active delegated task preview from task descriptions", () => {
+    expect(
+      delegatedTaskActivePreview([
+        taskPart({ status: "pending", input: { description: "Index repo" } }),
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "completed", input: { description: "Ignored done" }, output: "done" }),
+      ]),
+    ).toBe("Index repo · Run tests")
+
+    expect(
+      delegatedTaskActivePreview([
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "pending", input: { description: "Update docs" } }),
+        taskPart({ status: "pending", input: { description: "Ship release" } }),
+      ]),
+    ).toBe("Run tests · Update docs +1 more")
+
+    expect(delegatedTaskActivePreview([taskPart({ status: "running", input: {} })])).toBe("1 active subagent")
+    expect(delegatedTaskActivePreview([taskPart({ status: "completed", input: { description: "Done" } })])).toBeUndefined()
+  })
+
+  test("detects verification evidence in delegated task results", () => {
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "Tests: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "- Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(
+      delegatedTaskHasVerificationEvidence([
+        "<task_result>",
+        "Implemented compact task result previews",
+        "- [x] Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe(true)
+
+    expect(delegatedTaskHasVerificationEvidence("<task_result>Done</task_result>")).toBe(false)
+  })
+
+  test("ignores checklist-prefixed verification lines when building previews", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "- [x] Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "- [x] Checks: bun test packages/opencode/test/session/task-state.test.ts",
+        "Implemented compact task result previews",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "- [x] Verification: bun test packages/opencode/test/session/task-state.test.ts",
+            "- [x] Checks: bun test packages/opencode/test/session/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
+    ).toBe("Task completed without result summary")
+  })
+
+  test("ignores bullet-prefixed verification lines when building previews", () => {
+    expect(
+      delegatedTaskResultPreview([
+        "task_id: session_123",
+        "",
+        "<task_result>",
+        "- Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "- Checks: bun test packages/opencode/test/session/task-state.test.ts",
+        "Implemented compact task result previews",
+        "</task_result>",
+      ].join("\n")),
+    ).toBe("Implemented compact task result previews")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "- Verification: bun test packages/opencode/test/session/task-state.test.ts",
+            "- Checks: bun test packages/opencode/test/session/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
+    ).toBe("Task completed without result summary")
+  })
+
   test("builds terminal previews for completed, failed, and cancelled delegated tasks", () => {
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: ["<task_result>", "Done", "Verification: bun test", "</task_result>"].join("\n"),
+        }),
+      ),
+    ).toBe("Done")
+
     expect(
       delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "<task_result>Done</task_result>" })),
     ).toBe("Done · verification missing")
 
     expect(
       delegatedTaskTerminalPreview(taskPart({ status: "completed", input: {}, output: "task_id: session_123\n\n" })),
+    ).toBe("Task completed without result summary")
+
+    expect(
+      delegatedTaskTerminalPreview(
+        taskPart({
+          status: "completed",
+          input: {},
+          output: [
+            "<task_result>",
+            "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+            "Checks: bun test packages/opencode/test/session/task-state.test.ts",
+            "</task_result>",
+          ].join("\n"),
+        }),
+      ),
     ).toBe("Task completed without result summary")
 
     expect(delegatedTaskTerminalPreview(taskPart({ status: "error", input: {}, error: "boom" }))).toBe("boom")
@@ -169,7 +357,11 @@ describe("delegated task lifecycle", () => {
     expect(
       delegatedTaskLatestTerminalPreview([
         taskPart({ status: "pending", input: {} }),
-        taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>First result\nVerification: bun test</task_result>",
+        }),
         taskPart({ status: "running", input: {} }),
         taskPart({ status: "error", input: {}, error: "Latest failure" }),
       ]),
@@ -178,9 +370,13 @@ describe("delegated task lifecycle", () => {
     expect(
       delegatedTaskLatestTerminalPreview([
         taskPart({ status: "running", input: {} }),
-        taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>Latest result\nVerification: bun test</task_result>",
+        }),
       ]),
-    ).toBe("Latest result · verification missing")
+    ).toBe("Latest result")
 
     expect(delegatedTaskLatestTerminalPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })

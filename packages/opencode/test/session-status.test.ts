@@ -20,4 +20,36 @@ describe("SessionStatus", () => {
     expect(SessionStatus.isActive({ type: "completed" })).toBe(false)
     expect(SessionStatus.isTerminal({ type: "running" })).toBe(false)
   })
+
+  test("detects active delegated work across a session tree", () => {
+    expect(
+      SessionStatus.hasActiveInTree("root", {
+        sessions: [
+          { id: "root" },
+          { id: "child-1", parentID: "root" },
+          { id: "child-2", parentID: "root" },
+          { id: "grandchild", parentID: "child-1" },
+        ],
+        statuses: {
+          "child-2": { type: "completed" },
+          grandchild: { type: "running" },
+        },
+      }),
+    ).toBe(true)
+  })
+
+  test("ignores terminal delegated work when checking a session tree", () => {
+    expect(
+      SessionStatus.hasActiveInTree("root", {
+        sessions: [
+          { id: "root" },
+          { id: "child-1", parentID: "root" },
+        ],
+        statuses: {
+          root: { type: "completed" },
+          "child-1": { type: "failed", message: "boom" },
+        },
+      }),
+    ).toBe(false)
+  })
 })

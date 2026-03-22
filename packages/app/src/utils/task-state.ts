@@ -6,8 +6,9 @@ export type DelegatedTaskLifecycleCounts = Record<DelegatedTaskLifecycle, number
 
 const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
-const TASK_METADATA_LINE = /^task_[a-z0-9_-]+:\s/i
-const TASK_VERIFICATION_LINE = /^(verification|verified|tests?|checks?):\s/i
+const TASK_LIST_PREFIX = /^(?:(?:[-*•]|\d+\.)\s*)?(?:\[[ xX]\]\s*)?/
+const TASK_METADATA_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?task_[a-z0-9_-]+:\\s`, "i")
+const TASK_VERIFICATION_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?(verification|verified|tests?|checks?):\\s`, "i")
 const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
 
 function firstPreviewLine(text?: string) {
@@ -17,7 +18,7 @@ function firstPreviewLine(text?: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .find((line) => !TASK_METADATA_LINE.test(line))
+    .find((line) => !TASK_METADATA_LINE.test(line) && !TASK_VERIFICATION_LINE.test(line))
 
   if (!first) return undefined
   if (first.length <= TASK_RESULT_LINE_LIMIT) return first

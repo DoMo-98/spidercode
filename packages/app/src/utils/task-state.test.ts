@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import {
+  delegatedTaskActivePreview,
   delegatedTaskHasVerificationEvidence,
+  delegatedTaskLatestCompletedPreview,
   delegatedTaskLatestTerminalPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
@@ -145,7 +147,7 @@ describe("task-state", () => {
         "",
         "<task_result>",
         "Implemented compact task result previews",
-        "Verification: bun test packages/opencode/test/session/task-state.test.ts",
+        "Verification: bun test packages/app/src/utils/task-state.test.ts",
         "</task_result>",
       ].join("\n")),
     ).toBe("Implemented compact task result previews")
@@ -368,10 +370,29 @@ describe("task-state", () => {
 
     expect(delegatedTaskLatestTerminalPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })
-})
- ]),
+
+  test("picks the latest successfully completed delegated task preview", () => {
+    expect(
+      delegatedTaskLatestCompletedPreview([
+        taskPart({ status: "pending", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>First result</task_result>" }),
+        taskPart({ status: "running", input: {} }),
+        taskPart({ status: "completed", input: {}, output: "<task_result>Latest result</task_result>" }),
+      ]),
     ).toBe("Latest result")
 
-    expect(delegatedTaskLatestTerminalPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
+    expect(
+      delegatedTaskLatestCompletedPreview([
+        taskPart({ status: "completed", input: {}, output: "<task_result>Good result</task_result>" }),
+        taskPart({
+          status: "completed",
+          input: {},
+          output: "<task_result>Cancelled result</task_result>",
+          metadata: { lifecycle: "cancelled" },
+        }),
+      ]),
+    ).toBe("Good result")
+
+    expect(delegatedTaskLatestCompletedPreview([taskPart({ status: "running", input: {} })])).toBeUndefined()
   })
 })

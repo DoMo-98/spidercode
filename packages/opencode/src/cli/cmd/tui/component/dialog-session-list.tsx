@@ -12,6 +12,7 @@ import { useKV } from "../context/kv"
 import { createDebouncedSignal } from "../util/signal"
 import { Spinner } from "./spinner"
 import { SessionStatus } from "@/session/status"
+import { delegatedTaskActivePreview, delegatedTaskLatestTerminalPreview } from "@/session/task-state"
 
 export function DialogSessionList() {
   const dialog = useDialog()
@@ -51,8 +52,13 @@ export function DialogSessionList() {
           sessions: sync.data.session,
           statuses: sync.data.session_status,
         })
+        const taskParts = (sync.data.message[x.id] ?? []).flatMap((message) =>
+          (sync.data.part[message.id] ?? []).filter((part) => part.type === "tool" && part.tool === "task"),
+        )
+        const description = delegatedTaskActivePreview(taskParts) ?? delegatedTaskLatestTerminalPreview(taskParts)
         return {
           title: isDeleting ? `Press ${keybind.print("session_delete")} again to confirm` : x.title,
+          description: isDeleting ? undefined : description,
           bg: isDeleting ? theme.error : undefined,
           value: x.id,
           category,

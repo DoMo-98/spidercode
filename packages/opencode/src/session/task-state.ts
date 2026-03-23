@@ -8,7 +8,10 @@ const TASK_RESULT_TAG = /<task_result>([\s\S]*?)<\/task_result>/i
 const TASK_RESULT_LINE_LIMIT = 120
 const TASK_LIST_PREFIX = /^(?:(?:[-*•]|\d+\.)\s*)?(?:\[[ xX]\]\s*)?/
 const TASK_METADATA_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?task_[a-z0-9_-]+:\\s`, "i")
-const TASK_VERIFICATION_LINE = new RegExp(`^(?:${TASK_LIST_PREFIX.source.slice(1)})?(verification|verified|tests?|checks?):\\s`, "i")
+const TASK_VERIFICATION_LINE = new RegExp(
+  `^(?:${TASK_LIST_PREFIX.source.slice(1)})?(verification|verified|tests?|checks?):\\s`,
+  "i",
+)
 const COMPLETED_WITHOUT_RESULT = "Task completed without result summary"
 
 function firstPreviewLine(text?: string) {
@@ -156,14 +159,39 @@ export function delegatedTaskTerminalPreview(part: TaskToolPart) {
 }
 
 export function delegatedTaskLatestTerminalPreview(parts: TaskToolPart[]) {
-  const latestTerminal = [...parts]
-    .reverse()
-    .find((part) => {
-      const lifecycle = delegatedTaskLifecycle(part)
-      return lifecycle === "completed" || lifecycle === "failed" || lifecycle === "cancelled"
-    })
+  const latestTerminal = [...parts].reverse().find((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "completed" || lifecycle === "failed" || lifecycle === "cancelled"
+  })
 
   return latestTerminal ? delegatedTaskTerminalPreview(latestTerminal) : undefined
+}
+
+function delegatedTaskDescription(part: TaskToolPart) {
+  const description = part.state.input?.description
+  if (typeof description !== "string") return undefined
+
+  const normalized = description.trim()
+  return normalized || undefined
+}
+
+export function delegatedTaskActivePreview(parts: TaskToolPart[]) {
+  const active = parts.filter((part) => {
+    const lifecycle = delegatedTaskLifecycle(part)
+    return lifecycle === "running" || lifecycle === "queued"
+  })
+  if (active.length === 0) return undefined
+
+  const labels = active.map(delegatedTaskDescription).filter((value): value is string => Boolean(value))
+
+  if (labels.length === 0) {
+    return active.length === 1 ? "1 active subagent" : `${active.length} active subagents`
+  }
+
+  const unique = [...new Set(labels)]
+  const visible = unique.slice(0, 2)
+  const suffix = unique.length > visible.length ? ` +${unique.length - visible.length} more` : ""
+  return `${visible.join(" · ")}${suffix}`
 }
 
 export function delegatedTaskLatestCompletedPreview(parts: TaskToolPart[]) {

@@ -85,6 +85,7 @@ The parent session should make it easy to:
 ### Default visible
 - active subagent count
 - short task labels
+- compact previews in parent summaries and session pickers
 - state badges
 - final summary per finished task when relevant
 

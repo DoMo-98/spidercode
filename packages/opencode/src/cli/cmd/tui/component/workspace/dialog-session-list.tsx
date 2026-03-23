@@ -13,6 +13,7 @@ import { createDebouncedSignal } from "../../util/signal"
 import { Spinner } from "../spinner"
 import { useToast } from "../../ui/toast"
 import { SessionStatus } from "@/session/status"
+import { delegatedTaskActivePreview, delegatedTaskLatestTerminalPreview } from "@/session/task-state"
 
 export function DialogSessionList(props: { workspaceID?: string; localOnly?: boolean } = {}) {
   const dialog = useDialog()
@@ -76,8 +77,13 @@ export function DialogSessionList(props: { workspaceID?: string; localOnly?: boo
           sessions: sessions(),
           statuses: sync.data.session_status,
         })
+        const taskParts = (sync.data.message[x.id] ?? []).flatMap((message) =>
+          (sync.data.part[message.id] ?? []).filter((part) => part.type === "tool" && part.tool === "task"),
+        )
+        const description = delegatedTaskActivePreview(taskParts) ?? delegatedTaskLatestTerminalPreview(taskParts)
         return {
           title: isDeleting ? `Press ${keybind.print("session_delete")} again to confirm` : x.title,
+          description: isDeleting ? undefined : description,
           bg: isDeleting ? theme.error : undefined,
           value: x.id,
           category,

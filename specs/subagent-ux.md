@@ -123,6 +123,7 @@ It should not feel:
 For Milestone 1, the UX only needs:
 - compact parent awareness of child sessions
 - readable status labels
+- compact active-task labels in parent summaries when subagents are still running
 - basic completion summaries
 - easy drill-down into subagents when needed
 

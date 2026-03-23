@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  delegatedTaskActivePreview,
   delegatedTaskLatestCompletedPreview,
   delegatedTaskLifecycle,
   delegatedTaskLifecycleCounts,
@@ -132,6 +133,28 @@ describe("delegated task lifecycle", () => {
     expect(
       delegatedTaskResultPreview(`<task_result>${"x".repeat(140)}</task_result>`),
     ).toBe(`${"x".repeat(119)}…`)
+  })
+
+  test("builds a compact active delegated task preview from task descriptions", () => {
+    expect(
+      delegatedTaskActivePreview([
+        taskPart({ status: "pending", input: { description: "Index repo" } }),
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "completed", input: { description: "Ignored done" }, output: "done" }),
+      ]),
+    ).toBe("Index repo · Run tests")
+
+    expect(
+      delegatedTaskActivePreview([
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "running", input: { description: "Run tests" } }),
+        taskPart({ status: "pending", input: { description: "Update docs" } }),
+        taskPart({ status: "pending", input: { description: "Ship release" } }),
+      ]),
+    ).toBe("Run tests · Update docs +1 more")
+
+    expect(delegatedTaskActivePreview([taskPart({ status: "running", input: {} })])).toBe("1 active subagent")
+    expect(delegatedTaskActivePreview([taskPart({ status: "completed", input: { description: "Done" } })])).toBeUndefined()
   })
 
   test("picks the latest successfully completed delegated task preview", () => {

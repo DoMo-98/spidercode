@@ -9,7 +9,11 @@ import { useCommandDialog } from "@tui/component/dialog-command"
 import { useKeybind } from "../../context/keybind"
 import { Flag } from "@/flag/flag"
 import { useTerminalDimensions } from "@opentui/solid"
-import { delegatedTaskLatestCompletedPreview, delegatedTaskLifecycleSummary } from "@/session/task-state"
+import {
+  delegatedTaskActivePreview,
+  delegatedTaskLatestCompletedPreview,
+  delegatedTaskLifecycleSummary,
+} from "@/session/task-state"
 
 const Title = (props: { session: Accessor<Session> }) => {
   const { theme } = useTheme()
@@ -56,6 +60,7 @@ export function Header() {
       ),
   )
   const subagentSummary = createMemo(() => delegatedTaskLifecycleSummary(taskParts()))
+  const activePreview = createMemo(() => delegatedTaskActivePreview(taskParts()))
   const latestCompletedPreview = createMemo(() => delegatedTaskLatestCompletedPreview(taskParts()))
 
   const cost = createMemo(() => {
@@ -182,7 +187,7 @@ export function Header() {
                     <text fg={theme.textMuted} wrapMode="none">
                       {summary().text}
                     </text>
-                    <Show when={latestCompletedPreview()}>
+                    <Show when={activePreview()} fallback={<Show when={latestCompletedPreview()}>{(preview) => <text fg={theme.textMuted} wrapMode="none">{preview()}</text>}</Show>}>
                       {(preview) => (
                         <text fg={theme.textMuted} wrapMode="none">
                           {preview()}
